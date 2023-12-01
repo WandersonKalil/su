@@ -1119,52 +1119,7 @@ err:
 
 #define write_token(fd, data)				\
 do {							\
-	uint32_t __data = htonl(data);			\
-	size_t __count = sizeof(__data);		\
-	size_t __len = write((fd), &__data, __count);	\
-	if (__len != __count) {				\
-		//PLOGE("write(" #data ")");		\
-		return -1;				\
-	}						\
-} while (0)
 
-    write_token(fd, PROTO_VERSION);
-    write_token(fd, PATH_MAX);
-    write_token(fd, ARG_MAX);
-    write_token(fd, ctx->from.uid);
-    write_token(fd, ctx->to.uid);
-    bin_size = strlen(ctx->from.bin) + 1;
-    write_token(fd, bin_size);
-    len = write(fd, ctx->from.bin, bin_size);
-    if (len != bin_size) {
-        //PLOGE("write(bin)");
-        return -1;
-    }
-    cmd = get_command(&ctx->to);
-    cmd_size = strlen(cmd) + 1;
-    write_token(fd, cmd_size);
-    len = write(fd, cmd, cmd_size);
-    if (len != cmd_size) {
-        //PLOGE("write(cmd)");
-        return -1;
-    }
-    return 0;
-}
-*/
-/*static int socket_receive_result(int fd, char *result, ssize_t result_len)
-{
-    ssize_t len;
-    
-    len = read(fd, result, result_len-1);
-    if (len < 0) {
-        //PLOGE("read(result)");
-        return -1;
-    }
-    result[len] = '\0';
-
-    return 0;
-}
-*/
 static void usage(int status) {
     FILE *stream = (status == EXIT_SUCCESS) ? stdout : stderr;
 
@@ -2570,15 +2525,7 @@ int su_main(int argc, char *argv[], int need_client, char** env) {
         PLOGE("setgroups");
         deny(&ctx);
     }
-	/*
-    if (setegid(st.st_gid)) {
-        PLOGE("setegid (%lu)", st.st_gid);
-        deny(&ctx);
-    }
-    if (seteuid(st.st_uid)) {
-        PLOGE("seteuid (%lu)", st.st_uid);
-        deny(&ctx);
-    }*/
+
 
     dballow = database_check(&ctx);
     switch (dballow) {
@@ -2599,20 +2546,6 @@ int su_main(int argc, char *argv[], int need_client, char** env) {
 		LOGD("database access denied: %d", dballow);
 		deny(&ctx);		/* never returns too */
     }
-    /*
-    socket_serv_fd = socket_create_temp(ctx.sock_path, sizeof(ctx.sock_path));
-    if (socket_serv_fd < 0) {
-        deny(&ctx);
-    }
-
-    signal(SIGHUP, cleanup_signal);
-    signal(SIGPIPE, cleanup_signal);
-    signal(SIGTERM, cleanup_signal);
-    signal(SIGQUIT, cleanup_signal);
-    signal(SIGINT, cleanup_signal);
-    signal(SIGABRT, cleanup_signal);
-    atexit(cleanup);
-	*/
 
     if (send_intent(&ctx, INTERACTIVE, ACTION_REQUEST) < 0) {
         deny(&ctx);
@@ -2641,40 +2574,6 @@ int su_main(int argc, char *argv[], int need_client, char** env) {
 		}
         
     }
-	
-/*
-    fd = socket_accept(socket_serv_fd);
-    if (fd < 0) {
-        deny(&ctx);
-    }
-    if (socket_send_request(fd, &ctx)) {
-        deny(&ctx);
-    }
-    if (socket_receive_result(fd, buf, sizeof(buf))) {
-        deny(&ctx);
-    }
-
-    close(fd);
-    close(socket_serv_fd);
-    socket_cleanup(&ctx);
-*/
-
-   /* result = buf;
-
-#define SOCKET_RESPONSE	"socket:"
-    if (strncmp(result, SOCKET_RESPONSE, sizeof(SOCKET_RESPONSE) - 1))
-       // LOGW("SECURITY RISK: Requestor still receives credentials in intent");
-    else
-        result += sizeof(SOCKET_RESPONSE) - 1;
-*/
-    /*if (!strcmp(result, "DENY")) {
-        deny(&ctx);
-    } else if (!strcmp(result, "ALLOW")) {
-        allow(&ctx);
-    } else {
-        //LOGE("unknown response from Superuser Requestor: %s", result);
-        deny(&ctx);
-    }*/
-	//deny(&ctx);
-	return -1;
+    deny(&ctx);
+    return -1;
 }
