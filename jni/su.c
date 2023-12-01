@@ -668,107 +668,9 @@ static void read_options(struct su_context *ctx)
 			  value = NULL;
 		 }
 			}}
-			/*LOGD("buf: %s", buf);
-			//strcat(buffer, buf);
-			length = strlen(buf);
-			len+= strlen(buf);
-           int w = write(supersu_prefencesfd[1], buf, length);
-		    n
-		   LOGD("w = %d", w);
-		  
-		   int r = read(supersu_prefencesfd[0], buffer, length);
-		  
-		   LOGD("read: %d", r);
-		   */
-				//if (caller_bin_access == NULL)
-				/*if ((caller_bin_access = strstr(buffer, app_config_access)) != NULL ) {
-                    //caller_bin_access = strstr(data, app_config_access);
-	               LOGD("found caller_bin_access: %s", caller_bin_access);
-				   if (caller_bin_access_stored == NULL) {
-				   //if (strcmp(caller_bin_access, app_config_access) == 0)  {
-				       caller_bin_access_stored = caller_bin_access;
-					   break;
-				   }
-				   //break;
-	            }*/
-				
-       }
-	  //} //else {
-		  
-	 // }
 	fclose(fp);
 	}
  
-	
-	/*int fd = open(supersu_prefences, O_RDONLY);
-	
-	int r = read(fd, buffer, length);
-	*/
-	
-	//LOGD("length: %d buffer: %s", len,  buffer);
-	
-	
-		/*
-		// WK, disabled on 28/02/2023: trying to read() the whole does not work (it will read only the half of file). fall back to fgets() which read one line at a time.
-		int supersu_prefencesfd[2];
-		pipe(supersu_prefencesfd);
-		
-		char command[ARG_MAX];
-	    snprintf(command, sizeof(command), "/system/bin/cat %s", supersu_prefences);
-	    char *args[] = { "sh", "-c", command, NULL, };
-           
-		
-		//if (data == NULL)  {
-			if (fork_zero_fucks() == 0) {
-			 
-			if (-1 == dup2(supersu_prefencesfd[1], STDOUT_FILENO)) {
-                PLOGE("dup2 child outfd");
-                exit(-1);
-            }
-			close(supersu_prefencesfd[0]);
-			close(supersu_prefencesfd[1]);
-			execv(_PATH_BSHELL, args);
-             PLOGE("exec cat");
-            _exit(EXIT_FAILURE);
-		} else {
-			close(supersu_prefencesfd[1]);
-			ssize_t len = read(supersu_prefencesfd[0], buffer, ARG_MAX);
-			LOGD("len: %d; buffer: %s", len, buffer);
-			if (len > 0) {
-				data = buffer;
-			} else {
-				PLOGE("read(supersu_prefencesfd)");
-			}
-			//wait(NULL);
-			//data = read_file(supersu_cfg);
-		}*/
-	
-		/*if ((caller_bin_access = strstr(data, app_config_access)) != NULL) {
-                    //caller_bin_access = strstr(data, app_config_access);
-	       LOGD("found caller_bin_access: %s", caller_bin_access);
-				//   break;
-	    }*/
-		
-	//if (caller_bin_access_stored/*caller_bin_access*/ != NULL){
-		//LOGD("caller_bin_access: %s", caller_bin_access_stored/*caller_bin_access*/);
-		
-		/*value = strchr(caller_bin_access, '>');
-		value[5] = 0;*/
-		//get_property(caller_bin_access, access, "value", "-1");
-	    //if (strstr(caller_bin_access_stored/*caller_bin_access*/, "grant") != NULL) {
-			//ctx->access = ALLOW;
-		//} else if (strstr(caller_bin_access_stored/*caller_bin_access*/, "deny") != NULL) {
-			/*ctx->access = DENY;
-		} 
-		value = NULL;
-		//ctx->access = atoi(access);
-	}
-	}*/
-	}
-	//caller_bin_access
-	
-	//LOGD("REQUESTOR_OPTIONS: %s %d", data, atoi( pref_root));
-	
 	} else if (atoi(pref_switch_superuser) == MAGISK) {
 		ctx->to.pref_switch_superuser = MAGISK;
 		memset(ctx->user.data_path,0, sizeof(ctx->user.data_path));
@@ -990,31 +892,6 @@ static void socket_cleanup(struct su_context *ctx)
     }
 }
 
-static void child_cleanup(struct su_context *ctx)
-{
-    pid_t pid = ctx->child;
-    int rc;
-
-    if (!pid) {
-        //LOGE("unexpected child");
-        pid = -1;	/* pick up any child */
-    }
-    pid = waitpid(pid, &rc, WNOHANG);
-    if (pid < 0) {
-        //PLOGE("waitpid");
-        exit(EXIT_FAILURE);
-    }
-    if (WIFEXITED(rc) && WEXITSTATUS(rc)) {
-        //LOGE("child %d terminated with error %d", pid, WEXITSTATUS(rc));
-        exit(EXIT_FAILURE);
-    }
-    if (WIFSIGNALED(rc) && WTERMSIG(rc) != SIGKILL) {
-        //LOGE("child %d terminated with signal %d", pid, WTERMSIG(rc));
-        exit(EXIT_FAILURE);
-    }
-    //LOGD("child %d terminated, status %d", pid, rc);
-    ctx->child = 0;
-}
 
 /*
  * For use in signal handlers/atexit-function
@@ -1023,102 +900,7 @@ static void child_cleanup(struct su_context *ctx)
  */
 static struct su_context *su_ctx = NULL;
 
-static void cleanup(void)
-{
-    socket_cleanup(su_ctx);
-}
-
-static void cleanup_signal(int sig)
-{
-    socket_cleanup(su_ctx);
-    exit(128 + sig);
-}
-
-void sigchld_handler(int sig)
-{
-    child_cleanup(su_ctx);
-    (void)sig;
-}
-
-static int socket_create_temp(char *path, size_t len)
-{
-    int fd;
-    struct sockaddr_un sun;
-
-    fd = socket(AF_LOCAL, SOCK_STREAM, 0);
-    if (fd < 0) {
-        //PLOGE("socket");
-        return -1;
-    }
-    if (fcntl(fd, F_SETFD, FD_CLOEXEC)) {
-        //PLOGE("fcntl FD_CLOEXEC");
-        goto err;
-    }
-
-    memset(&sun, 0, sizeof(sun));
-    sun.sun_family = AF_LOCAL;
-    snprintf(path, len, "%s/.socket%d", REQUESTOR_CACHE_PATH, getpid());
-    snprintf(sun.sun_path, sizeof(sun.sun_path), "%s", path);
-
-    /*
-     * Delete the socket to protect from situations when
-     * something bad occured previously and the kernel reused pid from that process.
-     * Small probability, isn't it.
-     */
-    unlink(sun.sun_path);
-
-    if (bind(fd, (struct sockaddr*)&sun, sizeof(sun)) < 0) {
-        //PLOGE("bind");
-        goto err;
-    }
-
-    if (listen(fd, 1) < 0) {
-        //PLOGE("listen");
-        goto err;
-    }
-
-    return fd;
-err:
-    close(fd);
-    return -1;
-}
-
-/*static int socket_accept(int serv_fd)
-{
-    struct timeval tv;
-    fd_set fds;
-    int fd, rc;
-
-     //Wait 20 seconds for a connection, then give up. 
-    tv.tv_sec = 20;
-    tv.tv_usec = 0;
-    FD_ZERO(&fds);
-    FD_SET(serv_fd, &fds);
-    do {
-        rc = select(serv_fd + 1, &fds, NULL, NULL, &tv);
-    } while (rc < 0 && errno == EINTR);
-    if (rc < 1) {
-        //PLOGE("select");
-        return -1;
-    }
-
-    fd = accept(serv_fd, NULL, NULL);
-    if (fd < 0) {
-        //PLOGE("accept");
-        return -1;
-    }
-
-    return fd;
-}
-*/
-/*static int socket_send_request(int fd, const struct su_context *ctx)
-{
-    size_t len;
-    size_t bin_size, cmd_size;
-    char *cmd;
-
-#define write_token(fd, data)				\
-do {							\
+					\
 
 static void usage(int status) {
     FILE *stream = (status == EXIT_SUCCESS) ? stdout : stderr;
