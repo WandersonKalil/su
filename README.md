@@ -1,2 +1,2 @@
 # su
-This is the su binrary for SuperPower.apk with Suppport for SuperSU and Magisk
+This is the su binary for SuperPower.apk with Suppport for SuperSU and Magisk
