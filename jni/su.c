@@ -670,7 +670,7 @@ static void read_options(struct su_context *ctx)
 			}}
 	fclose(fp);
 	}
- 
+ }}
 	} else if (atoi(pref_switch_superuser) == MAGISK) {
 		ctx->to.pref_switch_superuser = MAGISK;
 		memset(ctx->user.data_path,0, sizeof(ctx->user.data_path));
@@ -772,7 +772,7 @@ static void read_options(struct su_context *ctx)
 		}
 		
 					
-	}
+	
 	LOGD("options read.");
 	/*
     char mode[12];
@@ -2275,11 +2275,15 @@ int su_main(int argc, char *argv[], int need_client, char** env) {
 	
 	su_ctx->requestor_uid = st.st_uid;
 	
+
+
+if (!strncmp(ctx.from.bin, "eu.chainfire.supersu", sizeof("eu.chainfire.supersu")) {
 	if (access_disabled(&ctx.from)) {
 		PLOGE("access_disabled %d", ctx.from.pref_root);
         deny(&ctx);
     }
-	
+	}
+
 	if (ctx.from.uid == AID_SHELL) {
         if (ctx.pref_full_command_logging == 1) {
 				if (isatty(STDIN_FILENO)) {
