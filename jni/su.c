@@ -770,7 +770,7 @@ static void read_options(struct su_context *ctx)
 			close(settingsfd[0]);
 		}
 		}
-		
+		}
 					
 	
 	LOGD("options read.");
