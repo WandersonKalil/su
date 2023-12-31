@@ -193,7 +193,8 @@ jobs:
         sudo ./check generic/448
         sudo ./check generic/450
         sudo ./check generic/451
-        sudo ./check generic/452    - name: configure
+        sudo ./check generic/452  
+   - name: configure
       run: ./configure
     - name: bash configure 
       run: 'bash configure && make && sudo make install'  
