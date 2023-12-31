@@ -13,6 +13,18 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      run: ./configure
+    - name: bash configure 
+      run: 'bash configure && make && sudo make install'  
+    - name autoreconf
+      run: autoreconf -i
+    - name: make
+      run: make
+    - name: make check
+      run: make check
+    - name: make distcheck
+      run: make distcheck
+
     - name: Download the kernel
       run: |
         sudo apt-get update
