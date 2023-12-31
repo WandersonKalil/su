@@ -13,8 +13,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    
+   - name: configure
+      run: ./configure
     - name: bash configure 
-      run: bash configure && make && sudo make install  
+      run: 'bash configure && make && sudo make install'  
     - name autoreconf
       run: autoreconf -i
     - name: make
