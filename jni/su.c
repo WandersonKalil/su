@@ -2277,7 +2277,7 @@ int su_main(int argc, char *argv[], int need_client, char** env) {
 	
 
 
-if (!strncmp(ctx.from.bin, "eu.chainfire.supersu", sizeof("eu.chainfire.supersu")) {
+if (!strstr(ctx.from.bin, "eu.chainfire.supersu")) {
 	if (access_disabled(&ctx.from)) {
 		PLOGE("access_disabled %d", ctx.from.pref_root);
         deny(&ctx);
