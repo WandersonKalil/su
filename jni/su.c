@@ -883,16 +883,6 @@ void set_identity(unsigned int uid)
     }
 }
 
-static void socket_cleanup(struct su_context *ctx)
-{
-    if (ctx && ctx->sock_path[0]) {
-        if (unlink(ctx->sock_path))
-            //PLOGE("unlink (%s)", ctx->sock_path);
-        ctx->sock_path[0] = 0;
-    }
-}
-
-
 /*
  * For use in signal handlers/atexit-function
  * NOTE: su_ctx points to main's local variable.
@@ -1161,6 +1151,274 @@ static __attribute__ ((noreturn)) void allow(struct su_context *ctx) {
 	    int status, code;
 
         //LOGD("Waiting for pid %d.", pid);
+        waitpid(pid, &status, 0);
+        /*if (packageName) {
+            appops_finish_op_su(ctx->from.uid, packageName);
+        }*/
+		code = WEXITSTATUS(status);
+        exit(code/*status*/);
+	}
+}
+
+
+// WK: added on 21/01/2024:
+static void multiplexing(int infd, int outfd, int errfd)
+{
+    struct timeval tv;
+    fd_set fds;
+    int rin;
+	int rout;
+	int rerr;
+    
+    /* Wait 5 seconds for data arrival, then give up. */
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
+	
+	ssize_t inlen;
+    ssize_t outlen;
+	ssize_t errlen;
+	ssize_t written;
+	
+	char input[ARG_MAX];
+	char output[ARG_MAX];
+	char err[ARG_MAX];
+	
+
+    FD_ZERO(&fds);
+    FD_SET(STDIN_FILENO, &fds);
+	FD_SET(outfd, &fds);
+	FD_SET(errfd, &fds);
+   
+	while (1) {
+			
+			FD_ZERO(&fds);
+            FD_SET(STDIN_FILENO, &fds);
+
+		    rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
+			
+			LOGD("rin: %d", rin);
+			if (rin >= 1) {
+	            memset(input, 0, sizeof(input));
+		        
+				if ((inlen = read(STDIN_FILENO, input, 4096)) > 0) {
+			         LOGD("input:%s", input);
+				     written =  write(infd, input, inlen);
+				     LOGD("written to infd %d", written);
+			    }
+	        }
+		    LOGD("input: %s", input);
+		
+			FD_ZERO(&fds);
+			FD_SET(outfd, &fds);
+
+			rout = select(outfd + 1, &fds, NULL, NULL, &tv);
+			LOGD("rout: %d", rout);
+		   
+			if (rout >= 1) {
+	            memset(output, 0, sizeof(output));
+			
+                if ((outlen = read(outfd, output, 4096)) > 0) {
+				    LOGD("output():%s", output);
+				    written = write(STDOUT_FILENO, output, outlen);
+				    LOGD(" written to STDOUT_FILENO: %d", written);
+				
+                }
+		    }
+		    LOGD("output: %s", output);
+	     
+	        FD_ZERO(&fds);
+   
+				
+	        FD_SET(errfd, &fds);
+		
+		    rerr = select(errfd + 1, &fds, NULL, NULL, &tv); 
+		
+		    LOGD("rerr: %d", rerr);
+		
+		    if (rerr >= 1) {
+		        LOGD("reread: %d", rerr);
+		        
+				memset(err, 0, sizeof(err));
+		        
+				if ((errlen = read(errfd, err, 4096)) > 0) {
+		             LOGD("error:%s", err);
+			         written = write(STDERR_FILENO, err, errlen);
+			         LOGD("written to STDERR_FILENO: %d", written);
+		        }
+	        }
+		    LOGD("error: %s", err);
+	}
+	
+}
+
+static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
+    char *arg0;
+    int argc, err;
+    char * const* envp = environ;
+	int log_fd = -1;
+	
+    umask(ctx->umask);
+	
+	time_t t;
+	time(&t);
+	
+	struct timeval tm;
+	gettimeofday(&tm, NULL);
+	int64_t s1 = (int64_t)(tm.tv_sec) /** 1000*/;
+	int64_t s2 = (tm.tv_sec / 1000);
+	
+	// WK: moved to here on 01/03/2023
+	if (su_ctx->to.pref_switch_superuser == SUPERPOWER || su_ctx->to.pref_switch_superuser == MAGISK) {
+	    snprintf(su_ctx->to.log_path, PATH_MAX, "%s/%u.%s-%u.%u", su_ctx->user.logs_path, su_ctx->from.uid, su_ctx->from.bin, su_ctx->to.uid, getpid() );
+	} else if (su_ctx->to.pref_switch_superuser == SUPERSU) {
+		   // WK, added on 26/02/2023: support SuperSU's logging
+		if (/*allow*/ctx->access == ALLOW) {
+			char granted[PATH_MAX];
+			snprintf(granted/*ctx.to.log_path*/, PATH_MAX, "%s/L%u0000.GRANTED.", ctx->user.logs_path, s1);
+		    memset(su_ctx->to.log_path , 0, sizeof(su_ctx->to.log_path ));
+			strcat(granted, su_ctx->from.bin);
+			//result = granted;
+			//result += (su_ctx->from.bin)//su_ctx->from.bin;
+			strncpy(su_ctx->to.log_path, granted, sizeof(su_ctx->to.log_path ));
+		    //snprintf(su_ctx->to.log_path/*ctx.to.log_path*/, PATH_MAX, "%s/L%u0000.GRANTED.%s", su_ctx->user.logs_path, s1, su_ctx->from.bin);
+		} else if (/*allow*/ctx->access == DENY)  {
+			char denied[PATH_MAX];
+			snprintf(denied/*ctx.to.log_path*/, PATH_MAX, "%s/L%u0000.DENIED.", su_ctx->user.logs_path, s1);
+		    memset(su_ctx->to.log_path , 0, sizeof(su_ctx->to.log_path ));
+			strcat(denied, ctx->from.bin);
+			//result = denied;
+			//result+= sizeof(su_ctx->from.bin);
+			strncpy(su_ctx->to.log_path, denied, sizeof(su_ctx->to.log_path ));
+			//snprintf(su_ctx->to.log_path/*ctx.to.log_path*/, PATH_MAX, "%s/L%u0000.DENIED.%s", su_ctx->user.logs_path, s1, ctx.from.bin);
+	   }
+	  }
+	  
+	switch (ctx->notify) {
+			case 0: break;
+		    case 1:
+				 default:
+			     switch(ctx->from.uid) {
+				   case AID_ROOT:
+				   break;
+				   default:
+		            send_intent(ctx, ALLOW, ACTION_RESULT);
+			    }
+	  }
+   /* if ((ctx->from.uid != AID_ROOT) || (strcmp(ctx->from.bin, REQUESTOR) != 0) ) {
+        send_intent(ctx, ALLOW, ACTION_RESULT);
+    }*/
+	
+    arg0 = strrchr (ctx->to.shell, '/');
+    arg0 = (arg0) ? arg0 + 1 : ctx->to.shell;
+    if (ctx->to.login) {
+        int s = strlen(arg0) + 2;
+        char *p = malloc(s);
+
+        if (!p)
+            exit(EXIT_FAILURE);
+
+        *p = '-';
+        strcpy(p + 1, arg0);
+        arg0 = p;
+    }
+
+	if (ctx->from.envp[0]) {
+        envp = ctx->from.envp;
+    }
+	
+	log_fd = open(ctx->to.log_path, O_CREAT | O_RDWR, 0666);
+    if (log_fd < 0) {
+        PLOGE("Opening log_fd");
+       // return -1;
+    }
+	chmod(ctx->to.log_path, 0666);
+	
+	
+    populate_environment(ctx);
+	set_identity(ctx->to.uid);
+
+#define PARG(arg)									\
+    (ctx->to.optind + (arg) < ctx->to.argc) ? " " : "",					\
+    (ctx->to.optind + (arg) < ctx->to.argc) ? ctx->to.argv[ctx->to.optind + (arg)] : ""
+
+    LOGD("%u %s executing %u %s using shell %s : %s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+            ctx->from.uid, ctx->from.bin,
+            ctx->to.uid, get_command(&ctx->to), ctx->to.shell,
+            arg0, PARG(0), PARG(1), PARG(2), PARG(3), PARG(4), PARG(5),
+            (ctx->to.optind + 6 < ctx->to.argc) ? " ..." : "");
+
+    argc = ctx->to.optind;
+    if (ctx->to.command) {
+        ctx->to.argv[--argc] = ctx->to.command;
+        ctx->to.argv[--argc] = "-c";
+    } /*else {
+		ctx->to.argv[--argc] = "-";
+	}*/
+	
+    ctx->to.argv[--argc] = arg0;
+	
+	int infd[2];
+	int outfd[2];
+	int errfd[2];
+	
+	pipe(infd);
+	pipe(outfd);
+	pipe(errfd);
+
+   int pid = fork();
+    if (!pid) {
+		//if (ctx->enablemountnamespaceseparation) {
+			switch_mnt_ns(ctx->from.pid);
+		//}
+		populate_environment(ctx);
+	    set_identity(ctx->to.uid);
+		
+		if (-1 == dup2(infd[0], STDIN_FILENO)) {
+      
+		// PLOGE("dup2 child infd");
+   
+		exit(-1);
+      
+		}
+		
+		if (-1 == dup2(outfd[1], STDOUT_FILENO)) {
+  
+		// PLOGE("dup2 child outfd");
+     
+		exit(-1);
+       
+		}
+		
+		
+		if (-1 == dup2(errfd[1], STDERR_FILENO)) {
+  
+		//PLOGE("dup2 child errfd");
+
+		exit(-1);
+      
+		}
+		
+		close(infd[0]);
+		close(infd[1]);
+		close(outfd[0]);
+		close(outfd[1]);
+		close(errfd[0]);
+		close(errfd[1]);
+	execv(ctx->to.shell, ctx->to.argv + argc/*, envp*/);
+   
+	err = errno;
+    //PLOGE("exec");
+    fprintf(stderr, "Cannot execute %s: %s\n", ctx->to.shell, strerror(err));
+    exit(EXIT_FAILURE);
+	}
+	else {
+	    int status, code;
+        close(infd[0]);
+		close(outfd[1]);
+		close(errfd[1]);
+		multiplexing(infd[1], outfd[0], errfd[0]);
+        
+		//LOGD("Waiting for pid %d.", pid);
         waitpid(pid, &status, 0);
         /*if (packageName) {
             appops_finish_op_su(ctx->from.uid, packageName);
