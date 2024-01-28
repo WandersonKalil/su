@@ -923,8 +923,8 @@ static __attribute__ ((noreturn)) void deny(struct su_context *ctx) {
 	
 	struct timeval tm;
 	gettimeofday(&tm, NULL);
-	int64_t s1 = (int64_t)(tm.tv_sec) /** 1000*/;
-	int64_t s2 = (tm.tv_sec / 1000);
+	unsigned int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
+	unsigned int s2 = (tm.tv_sec / 1000);
 	
 	// WK: moved to here on 01/03/2023
 	if (ctx->to.pref_switch_superuser == SUPERPOWER || ctx->to.pref_switch_superuser == MAGISK) {
@@ -1041,8 +1041,8 @@ static __attribute__ ((noreturn)) void allow(struct su_context *ctx) {
 	
 	struct timeval tm;
 	gettimeofday(&tm, NULL);
-	int64_t s1 = (int64_t)(tm.tv_sec) /** 1000*/;
-	int64_t s2 = (tm.tv_sec / 1000);
+	unsigned int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
+	unsigned int s2 = (tm.tv_sec / 1000);
 	
 	// WK: moved to here on 01/03/2023
 	if (su_ctx->to.pref_switch_superuser == SUPERPOWER || su_ctx->to.pref_switch_superuser == MAGISK) {
@@ -1170,8 +1170,8 @@ static void multiplexing(int infd, int outfd, int errfd)
 	int rout;
 	int rerr;
     
-    /* Wait 5 seconds for data arrival, then give up. */
-    tv.tv_sec = 5;
+    /* Wait 1 second for data arrival, then give up. */
+    tv.tv_sec = 1;
     tv.tv_usec = 0;
 	
 	ssize_t inlen;
@@ -1204,6 +1204,9 @@ static void multiplexing(int infd, int outfd, int errfd)
 			         LOGD("input:%s", input);
 				     written =  write(infd, input, inlen);
 				     LOGD("written to infd %d", written);
+
+write(log_fd, input, inlen);
+	
 			    }
 	        }
 		    LOGD("input: %s", input);
@@ -1221,7 +1224,15 @@ static void multiplexing(int infd, int outfd, int errfd)
 				    LOGD("output():%s", output);
 				    written = write(STDOUT_FILENO, output, outlen);
 				    LOGD(" written to STDOUT_FILENO: %d", written);
-				
+
+
+write(log_fd, "{", strlen("{"));
+write(log_fd, output, outlen); write(log_fd, "\n", strlen("\n"));
+write(log_fd, "}", strlen("}"));
+write(log_fd, "\n", strlen("\n"));
+					
+					// WK: added on 24/01/2024: this fixes the "exit" command issue:
+					continue;				
                 }
 		    }
 		    LOGD("output: %s", output);
@@ -1244,8 +1255,27 @@ static void multiplexing(int infd, int outfd, int errfd)
 		             LOGD("error:%s", err);
 			         written = write(STDERR_FILENO, err, errlen);
 			         LOGD("written to STDERR_FILENO: %d", written);
+
+
+write(log_fd, "!", strlen("!")); write(log_fd, err, errlen);
+write(log_fd, "\n", strlen("\n"));
+write(log_fd, "!", strlen("!")); write(log_fd, "\n", strlen("\n"));
+					 // WK: added on 24/01/2024: this fixes the "exit" command issue:
+					 continue;
 		        }
-	        }
+
+// WK: added on 24/01/2024: this fixes the "exit" command issue:
+				FD_ZERO(&fds);
+    FD_SET(STDIN_FILENO, &fds);
+		
+				rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
+			    
+				LOGD ("rin2: %d", rin);
+				if (rin == 0) {
+				// WK: added on 24/01/2024: this fixes the "exit" command issue: if there is no data on STDIN_FILENO, break out of the so the process continue its normal flow and call waitpid().
+					break;
+				}	        
+}
 		    LOGD("error: %s", err);
 	}
 	
@@ -1264,8 +1294,8 @@ static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
 	
 	struct timeval tm;
 	gettimeofday(&tm, NULL);
-	int64_t s1 = (int64_t)(tm.tv_sec) /** 1000*/;
-	int64_t s2 = (tm.tv_sec / 1000);
+	unsigned int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
+	unsigned int s2 = (tm.tv_sec / 1000);
 	
 	// WK: moved to here on 01/03/2023
 	if (su_ctx->to.pref_switch_superuser == SUPERPOWER || su_ctx->to.pref_switch_superuser == MAGISK) {
@@ -1420,11 +1450,12 @@ static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
         
 		//LOGD("Waiting for pid %d.", pid);
         waitpid(pid, &status, 0);
-        /*if (packageName) {
-            appops_finish_op_su(ctx->from.uid, packageName);
-        }*/
+close(infd[1]);
+		close(outfd[0]);
+		close(errfd[0]);
+        
 		code = WEXITSTATUS(status);
-        exit(code/*status*/);
+        exit(code);
 	}
 }
 
@@ -1448,8 +1479,8 @@ static __attribute__ ((noreturn)) void terminal_allow(struct su_context *ctx){
 	
 	struct timeval tm;
 	gettimeofday(&tm, NULL);
-	int64_t s1 = (int64_t)(tm.tv_sec) /** 1000*/;
-	int64_t s2 = (tm.tv_sec / 1000);
+unsigned 	int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
+	unsigned int s2 = (tm.tv_sec / 1000);
 	// WK: moved to here on 01/03/2023
 	if (ctx->to.pref_switch_superuser == SUPERPOWER || ctx->to.pref_switch_superuser == MAGISK) {
 	    snprintf(ctx->to.log_path, PATH_MAX, "%s/%u.%s-%u.%u", ctx->user.logs_path, ctx->from.uid, ctx->from.bin, ctx->to.uid, getpid() );
@@ -1662,11 +1693,9 @@ static __attribute__ ((noreturn)) void terminal_allow(struct su_context *ctx){
 
         LOGD("Waiting for pid %d.", pid);
         waitpid(pid, &status, 0);
-        /*if (packageName) {
-            appops_finish_op_su(ctx->from.uid, packageName);
-        }*/
+        
 		code = WEXITSTATUS(status);
-        exit(code/*status*/);
+        exit(code);
     }
 }
 
@@ -1693,8 +1722,8 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
 	
 	struct timeval tm;
 	gettimeofday(&tm, NULL);
-	int64_t s1 = (int64_t)(tm.tv_sec) /** 1000*/;
-	int64_t s2 = (tm.tv_sec / 1000);
+	unsigned int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
+	unsigned int s2 = (tm.tv_sec / 1000);
 	
 	// WK: moved to here on 01/03/2023
 	if (ctx->to.pref_switch_superuser == SUPERPOWER || ctx->to.pref_switch_superuser == MAGISK) {
@@ -2041,11 +2070,9 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
 			kill(pid, SIGKILL);
 			exit(0);
 		}*/
-        /*if (packageName) {
-            appops_finish_op_su(ctx->from.uid, packageName);
-        }*/
+        
 		code = WEXITSTATUS(status);
-        exit(code/*status*/);
+        exit(code);
     }
 }
 
