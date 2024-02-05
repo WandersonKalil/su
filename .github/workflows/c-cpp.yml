@@ -24,15 +24,10 @@ jobs:
       run: make check
     - name: make distcheck
       run: make distcheck
- - name: Setup Android NDK >=23
-  # You may pin to the exact commit or the version.
-  # uses: anoop-b/setup-ndk@6f0ee78e62451cfec5f1698acb00b58d00a5d7b6
-  uses: anoop-b/setup-ndk@V1.3.0
-  with:
-    # Exact version to use
-    ndk-version: 
-    # Add installation directory to the PATH
-    add-to-path: # optional, default is true
-    # Use the local job cache on top of the runner tool cache
-    local-cache: # optional, default is false
-          
+steps:
+  - uses: actions/checkout@v3
+  - uses: nttld/setup-ndk@v1
+    with:
+      ndk-version: r25c
+  - run: ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk NDK_APPLICATION_MK=./Application.mk
+
