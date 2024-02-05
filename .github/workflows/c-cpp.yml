@@ -19,11 +19,11 @@ jobs:
 - name: Setup environment
 - uses: ./.github/actions/setup
 - name: Setup Android NDK
-  uses: nttld/setup-ndk@v1.4.2
+- uses: nttld/setup-ndk@v1.4.2
 - name: Build release
   run: ./build.py -vr all
   - name: Upload build artifact
-   uses: actions/upload-artifact@v4
+ - uses: actions/upload-artifact@v4
         with:
           name: ${{ github.sha }}
           path: out
