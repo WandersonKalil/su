@@ -16,7 +16,6 @@ jobs:
 - runs-on: ubuntu-latest
 - name: Check out
 - uses: actions/checkout@v4      
-- name: Setup environment
 - name: Build release
   run: ./build.py -vr all
   - name: Upload build artifact
