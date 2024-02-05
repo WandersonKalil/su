@@ -14,15 +14,28 @@ jobs:
   build:
    name: Build su binary
    runs-on: ubuntu-latest
-    - name: Check out
-    - uses: actions/checkout@v4
-    - with:
+   - name: Check out
+   - uses: actions/checkout@v4
+   - with:
           submodules: "recursive"
           fetch-depth: 0
           
-     - name: Setup environment
-     uses: ./.github/actions/setup
+    - name: Setup environment
+    - uses: ./.github/actions/setup
 
+- name: Setup Android NDK
+  # You may pin to the exact commit or the version.
+  # uses: nttld/setup-ndk@6a7e9c5494a25c4842ca1011f710300132eacd94
+  uses: nttld/setup-ndk@v1.4.2
+  with:
+    # Exact version to use
+    ndk-version: 
+    # Add installation directory to the PATH
+    add-to-path: # optional, default is true
+    # Add installed NDK to the Android SDK
+    link-to-sdk: # optional, default is false
+    # Use the local job cache on top of the runner tool cache
+    local-cache: # optional, default is false
       - name: Build release
         run: ./build.py -vr all
 
