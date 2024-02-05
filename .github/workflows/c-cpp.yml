@@ -13,15 +13,14 @@ on:
 jobs:
   build:
    name: Build su binary
-    runs-on: ubuntu-latest
-
-    steps:
+   runs-on: ubuntu-latest
+   steps:
     - name: Check out
-     uses: actions/checkout@v4
-    with:
+    - uses: actions/checkout@v4
+    - with:
           submodules: "recursive"
           fetch-depth: 0
-
+          
      - name: Setup environment
      uses: ./.github/actions/setup
 
