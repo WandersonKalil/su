@@ -1,4 +1,4 @@
-sename: C/C++ CI
+usename: C/C++ CI
 
 on:
   push:
@@ -24,13 +24,13 @@ jobs:
   uses: nttld/setup-ndk@v1.4.2
   with:
     # Exact version to use
-    ndk-version: 
+    - ndk-version: 
     # Add installation directory to the PATH
-    add-to-path: # optional, default is true
+    - add-to-path: # optional, default is true
     # Add installed NDK to the Android SDK
-    link-to-sdk: # optional, default is false
+    - link-to-sdk: # optional, default is false
     # Use the local job cache on top of the runner tool cache
-    local-cache: # optional, default is false
+    - local-cache: # optional, default is false
       - name: Build release
         run: ./build.py -vr all
 
