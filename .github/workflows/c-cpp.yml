@@ -9,7 +9,7 @@ on:
     - ".github/workflows/c-cpp.yml"
   pull_request:
     branches: [ "main" ]
-bom compreendi
+
 jobs:
 - build:
 - name: Build su binary
