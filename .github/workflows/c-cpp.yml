@@ -24,7 +24,7 @@ jobs:
       run: make check
     - name: make distcheck
       run: make distcheck
-steps:
+- steps:
   - uses: actions/checkout@v3
   - uses: nttld/setup-ndk@v1
     with:
