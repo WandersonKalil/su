@@ -14,21 +14,11 @@ jobs:
 - build:
 - name: Build su binary
 - runs-on: ubuntu-latest
-- name: Check out
-- uses: actions/checkout@v3    
-- name: Build release
-  run: ./build.py -vr all
-  - name: Upload build artifact
- - uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.sha }}
-          path: out
-          compression-level: 9
-    - name: configure
-      run: ./configure
-    - name: make
-      run: make
-    - name: make check
-      run: make check
-    - name: make distcheck
-      run: make distcheck
+            - name: Setup C/C++ Compiler
+  # You may pin to the exact commit or the version.
+  # uses: rlalik/setup-cpp-compiler@f39db50a7fd04bfd65ce41e8fec0ac185ae59dfb
+  uses: rlalik/setup-cpp-compiler@v1.2
+  with:
+    # Compiler to install
+    compiler: # optional, default is gcc-latest
+          
