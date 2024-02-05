@@ -1,4 +1,4 @@
-name: C/C++ CI
+sename: C/C++ CI
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
     - ".github/workflows/c-cpp.yml"
   pull_request:
     branches: [ "main" ]
-
+bom compreendi
 jobs:
 - build:
 - name: Build su binary
@@ -18,11 +18,9 @@ jobs:
 - uses: actions/checkout@v4
 - with:
     submodules: "recursive"
-    fetch-depth: 0
-          
+    fetch-depth: 0        
  - name: Setup environment
  - uses: ./.github/actions/setup
-
 - name: Setup Android NDK
   # You may pin to the exact commit or the version.
   # uses: nttld/setup-ndk@6a7e9c5494a25c4842ca1011f710300132eacd94
@@ -45,7 +43,6 @@ jobs:
           name: ${{ github.sha }}
           path: out
           compression-level: 9
-          
     - name: configure
       run: ./configure
     - name: make
