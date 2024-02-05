@@ -14,7 +14,7 @@ jobs:
   build:
    name: Build su binary
    runs-on: ubuntu-latest
-   steps:
+    - steps:
     - name: Check out
     - uses: actions/checkout@v4
     - with:
