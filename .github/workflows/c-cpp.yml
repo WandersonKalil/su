@@ -11,8 +11,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-   name: Build su binary
+- build:
+- name: Build su binary
    runs-on: ubuntu-latest
    - name: Check out
    - uses: actions/checkout@v4
