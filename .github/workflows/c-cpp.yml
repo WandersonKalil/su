@@ -1,9 +1,8 @@
-usename: C/C++ CI
+name: C/C++ CI
 
 on:
   push:
     branches: [ "main" ]
-
     paths:
     - "jni/**"
     - ".github/workflows/c-cpp.yml"
@@ -11,14 +10,29 @@ on:
     branches: [ "main" ]
 
 jobs:
-- build:
-- name: Build su binary
-- runs-on: ubuntu-latest
-- name: Setup C/C++ Compiler
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: configure
+      run: ./configure
+    - name: make
+      run: make
+    - name: make check
+      run: make check
+    - name: make distcheck
+      run: make distcheck
+ - name: Setup Android NDK >=23
   # You may pin to the exact commit or the version.
-  # uses: rlalik/setup-cpp-compiler@f39db50a7fd04bfd65ce41e8fec0ac185ae59dfb
-  uses: rlalik/setup-cpp-compiler@v1.2
+  # uses: anoop-b/setup-ndk@6f0ee78e62451cfec5f1698acb00b58d00a5d7b6
+  uses: anoop-b/setup-ndk@V1.3.0
   with:
-    # Compiler to install
-    compiler: # optional, default is gcc-latest
+    # Exact version to use
+    ndk-version: 
+    # Add installation directory to the PATH
+    add-to-path: # optional, default is true
+    # Use the local job cache on top of the runner tool cache
+    local-cache: # optional, default is false
           
