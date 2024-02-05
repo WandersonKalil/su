@@ -11,8 +11,7 @@ on:
 
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+- runs-on: ubuntu-latest
 - steps:
 - name Run NDK
   - uses: actions/checkout@v3
