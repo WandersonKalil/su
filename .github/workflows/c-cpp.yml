@@ -17,7 +17,7 @@ jobs:
 - name: Check out
 - uses: actions/checkout@v4      
 - name: Setup environment
-- uses: ./.github/actions/setup/action.yml
+- uses: https://github.com/WandersonKalil/su/blob/main/.github/actions/setup/actions.yml
 - name: Build release
   run: ./build.py -vr all
   - name: Upload build artifact
