@@ -333,18 +333,34 @@ static void read_options(struct su_context *ctx)
 	char pref_mount_namespace_separation[PROPERTY_VALUE_MAX];
 	char supersu_prefences[PATH_MAX];
 	
-	char *data = read_file(REQUESTOR_OPTIONS);
+	struct stat st;
+	char *data = NULL;
+	
+        if (stat(REQUESTOR_PREMIUM_DATA_PATH, &st) < 0) {
+            PLOGE("stat %s", REQUESTOR_PREMIUM_DATA_PATH);
+	    // WK: on 07/02/2024: use SuperPower's settings:
+	    data = read_file(REQUESTOR_OPTIONS);
+ 	    snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
+            ctx->user.userid, REQUESTOR);
+	    snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
+	    LOGD("ctx->user.logs_path: %s", ctx->user.logs_path);	
+        } else {
+	  // WK: on 07/02/2024: use SuperPower Premium's settings:
+	   ctx->is_premium = 1;
+	   data = read_file(REQUESTOR_PREMIUM_OPTIONS);
+	   snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
+           ctx->user.userid, REQUESTOR_PREMIUM);
+	   snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
+	   LOGD("ctx->user.logs_path: %s", ctx->user.logs_path);	
+	   snprintf(ctx->user.store_path, PATH_MAX, "%s", REQUESTOR_PREMIUM_STORED_PATH);
+	   snprintf(ctx->user.store_default, PATH_MAX, "%s", REQUESTOR_PREMIUM_STORED_DEFAULT);
+	}
+	
 	
 	get_property(data, pref_switch_superuser, "pref_switch_superuser" , "1");
 	
 	if (atoi(pref_switch_superuser) == SUPERPOWER) {
-		ctx->to.pref_switch_superuser = SUPERPOWER;
-		
-		snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
-        	        ctx->user.userid, REQUESTOR);
-	    snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
-			LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
-			
+	    ctx->to.pref_switch_superuser = SUPERPOWER;
 		
 	get_property(data, pref_multiuser_mode, "pref_multiuser_mode", "-1");
 	get_property(data, pref_full_command_logging, "pref_full_command_logging", "0");
@@ -2286,8 +2302,8 @@ int su_main(int argc, char *argv[], int need_client, char** env) {
             .uid = 0,
             .bin = "",
             .args = "",
-			.pref_root = 3,
-			.env = "",
+	    .pref_root = 3,
+	    .env = "",
             .envp = { NULL },
         },
         .to = {
@@ -2299,8 +2315,8 @@ int su_main(int argc, char *argv[], int need_client, char** env) {
             .argv = argv,
             .argc = argc,
             .optind = 0,
-			.pref_switch_superuser = 1,
-			.fifo = "",
+	    .pref_switch_superuser = 1,
+ 	    .fifo = "",
         },
         .user = {
             .userid = 0,
@@ -2308,14 +2324,15 @@ int su_main(int argc, char *argv[], int need_client, char** env) {
             .data_path = REQUESTOR_DATA_PATH,
             .store_path = REQUESTOR_STORED_PATH,
             .store_default = REQUESTOR_STORED_DEFAULT,
-			.logs_path = REQUESTOR_LOGS_PATH,
+	    .logs_path = REQUESTOR_LOGS_PATH,
         },
         .child = 0,
-		.pref_full_command_logging = 0,
-	    .notify = 1,
-	    .access = 2,
-		. log_data_and_time_only = 1,
-		.enablemountnamespaceseparation = 1,
+	.pref_full_command_logging = 0,
+	.notify = 1,
+	.access = 2,
+	.log_data_and_time_only = 1,
+	.enablemountnamespaceseparation = 1,
+	.is_premium = 0,
     };
     struct stat st;
     int c, socket_serv_fd, fd;
