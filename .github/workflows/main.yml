@@ -1,4 +1,4 @@
-uses: https://github.com/nttld/setup-ndk/releases/tag/v1.4.2           
+- uses: https://github.com/nttld/setup-ndk/releases/tag/@v1.4.2           
 - with:
       ndk-version: r25c
   - run: ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk NDK_APPLICATION_MK=./Application.mk
