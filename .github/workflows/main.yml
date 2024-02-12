@@ -1,5 +1,4 @@
-  runs-on: ubuntu-18.04
-  - name: Setup Node
+- name: Setup Node
     - steps:
   - uses: actions/checkout@v3
   - uses: nttld/setup-ndk@v1
