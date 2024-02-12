@@ -1,5 +1,5 @@
 name: Setup Android NDK
-uses: nttld/setup-ndk@v1.4.2           
+- uses: nttld/setup-ndk@v1.4.2           
 - with:
       ndk-version: r25c
   - run: ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk NDK_APPLICATION_MK=./Application.mk
