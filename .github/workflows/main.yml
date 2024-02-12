@@ -1,4 +1,9 @@
-- uses: https://github.com/nttld/setup-ndk/releases/tag/@v1.4.2           
-- with:
-      ndk-version: r25c
-  - run: ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk NDK_APPLICATION_MK=./Application.mk
+      - shell: bash
+        run: mkdir toolchains
+      - name: specify NDK
+        uses: ravinderjangra/android-ndk-toolchain-setup@0.2
+        with:
+          api: '21'
+          arch: 'x86'
+          install-location: 'toolchains'
+          force: true
