@@ -1,0 +1,25 @@
+on:
+  push:
+    branches:
+    - main
+    - release/*
+    on:
+  pull_request:
+    branches:
+    - main
+
+    jobs:
+  my_job:
+    name: deploy to staging
+    runs-on: ubuntu-18.04
+
+    - name: Setup Node
+  uses: actions/setup-node@v1
+  with:
+    node-version: '10.x'
+    steps:
+  - uses: actions/checkout@v3
+  - uses: nttld/setup-ndk@v1
+    with:
+      ndk-version: r25c
+  - run: ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk NDK_APPLICATION_MK=./Application.mk
