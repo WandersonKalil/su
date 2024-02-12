@@ -1,13 +1,4 @@
-- on:
-  push:
-    branches:
-    - main
-   - on:
-   - pull_request:
-    branches:
-    - main
-
-    jobs:
+jobs:
     name: deploy to staging
     runs-on: ubuntu-18.04
 
