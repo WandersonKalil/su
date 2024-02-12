@@ -912,7 +912,7 @@ static void usage(int status) {
     FILE *stream = (status == EXIT_SUCCESS) ? stdout : stderr;
 
     fprintf(stream,
-	"2016-2023 - WK\n"
+	"2016-2024 - WK\n"
     "Usage: su [options] [--] [-] [LOGIN] [--] [args...]\n\n"
     "Options:\n"
 	"--auto-daemon, --daemon start the su daemon\n"
