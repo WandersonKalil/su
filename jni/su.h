@@ -1,4 +1,4 @@
-/*
+u/*
 ** Copyright 2010, Adam Shanks (@ChainsDD)
 ** Copyright 2008, Zinx Verituse (@zinxv)
 **
@@ -39,6 +39,21 @@
 
 #define SU_REQUEST_ACTIVITY REQUESTOR "/.SuRequestActivity"
 #define SU_RESULT_RECEIVER  REQUESTOR "/.SuResultReceiver"
+
+#define REQUESTOR_PREMIUM "wkroot.manager.premium"
+#define REQUESTOR_PREMIUM_DATA_PATH "/data/data/" REQUESTOR_PREMIUM
+#define REQUESTOR_PREMIUM_STORED_PATH REQUESTOR_PREMIUM_DATA_PATH "/files/stored"
+#define REQUESTOR_PREMIUM_STORED_DEFAULT REQUESTOR_PREMIUM_STORED_PATH "/default"
+#define REQUESTOR_PREMIUM_OPTIONS REQUESTOR_PREMIUM_STORED_PATH "/options"
+#define REQUESTOR_PREMIUM_LOGS_PATH REQUESTOR_PREMIUM_DATA_PATH "/files/logs"
+
+/* intent actions */
+#define ACTION_REQUEST_PREMIUM REQUESTOR_PREMIUM ".REQUEST"
+#define ACTION_RESULT_PREMIUM  REQUESTOR_PREMIUM ".RESULT"
+
+#define SU_REQUEST_ACTIVITY_PREMIUM REQUESTOR_PREMIUM "/.SuRequestActivity"
+#define SU_RESULT_RECEIVER_PREMIUM  REQUESTOR_PREMIUM "/.SuResultReceiver"
+
 
 #define DEFAULT_SHELL "/system/bin/sh"
 
