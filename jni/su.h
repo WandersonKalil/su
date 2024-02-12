@@ -1,4 +1,4 @@
-u/*
+/*
 ** Copyright 2010, Adam Shanks (@ChainsDD)
 ** Copyright 2008, Zinx Verituse (@zinxv)
 **
