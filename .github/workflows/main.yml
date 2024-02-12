@@ -1,9 +1,6 @@
-      - shell: bash
-        run: mkdir toolchains
-      - name: specify NDK
-        uses: ravinderjangra/android-ndk-toolchain-setup@0.2
-        with:
-          api: '21'
-          arch: 'x86'
-          install-location: 'toolchains'
-          force: true
+steps:
+  - uses: actions/checkout@v2
+  - uses: nttld/setup-ndk@v1
+    with:
+      ndk-version: r25b
+  - runs: ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk NDK_APPLICATION_MK=./Application.mk
