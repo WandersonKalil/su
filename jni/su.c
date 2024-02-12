@@ -1207,7 +1207,7 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 	  rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
 			
 	  if (rin >= 1) {
-	      LOGD("rin: %d", rin)
+	      LOGD("rin: %d", rin);
 	      memset(input, 0, sizeof(input));
 		        
 	     if ((inlen = read(STDIN_FILENO, input, 4096)) > 0) {
