@@ -175,6 +175,16 @@ int send_intent(struct su_context *ctx, allow_t allow, const char *action)
 				//sleep(1);
 			//}
 			// SuperPower support
+		 if (ctx->is_premium == 1) {
+			// SuperPower support
+		    // WK, on 20/10/22: the Android 10/11 have restrictions against SuRequestActivity being launched indirectly via a broadcast  (SuRequestReceiver). we need to start the activity directly using "am start" command.
+		    snprintf(command, sizeof(command),
+            "/system/bin/am '%s' --user %d -a '%s' "
+            "--ei caller_uid '%d' --es caller_bin '%s' --ei allow '%d' --ei desired_uid '%d' --es desired_cmd '%s' "
+            "--ei version_code '%d' -n '%s' --include-stopped-packages --receiver-replace-pending",
+           (allow == INTERACTIVE) ? "start" : "broadcast", ctx->user.userid, action, /*socket_path,*/ uid, ctx->from.bin, allow, ctx->to.uid, ctx->to.log_path/*get_command(&ctx->to)*/,
+            /*ctx->to.all,*/ VERSION_CODE, (allow == INTERACTIVE) ? SU_REQUEST_ACTIVITY_PREMIUM: SU_RESULT_RECEIVER_PREMIUM);
+			} else {
 		// WK, on 20/10/22: the Android 10/11 have restrictions against SuRequestActivity being launched indirectly via a broadcast  (SuRequestReceiver). we need to start the activity directly using "am start" command.
 		snprintf(command, sizeof(command),
             "/system/bin/am '%s' --user %d -a '%s' "
@@ -183,6 +193,7 @@ int send_intent(struct su_context *ctx, allow_t allow, const char *action)
            (allow == INTERACTIVE) ? "start" : "broadcast", ctx->user.userid, action, /*socket_path,*/ uid, ctx->from.bin, allow, ctx->to.uid, ctx->to.log_path/*get_command(&ctx->to)*/,
             /*ctx->to.all,*/ VERSION_CODE, (allow == INTERACTIVE) ? SU_REQUEST_ACTIVITY: SU_RESULT_RECEIVER);
        } 
+}
 	    // SuperSU support
 	   else if (ctx->to.pref_switch_superuser == SUPERSU) {
 		
