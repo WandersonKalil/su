@@ -1,4 +1,4 @@
-- name: Setup Android NDK
+- name: SetupAndroidNDK
 uses: nttld/setup-ndk@v1.4.2
             
 - with:
