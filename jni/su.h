@@ -132,6 +132,7 @@ struct su_context {
 	int log_data_and_time_only;
 	int enablemountnamespaceseparation;
 	int requestor_uid;
+        int is_premium;
 };
 
 typedef enum {
