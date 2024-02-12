@@ -1162,7 +1162,7 @@ static __attribute__ ((noreturn)) void allow(struct su_context *ctx) {
 
 
 // WK: added on 21/01/2024:
-static void multiplexing(int infd, int outfd, int errfd)
+static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 {
     struct timeval tv;
     fd_set fds;
@@ -1446,7 +1446,7 @@ static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
         close(infd[0]);
 		close(outfd[1]);
 		close(errfd[1]);
-		multiplexing(infd[1], outfd[0], errfd[0]);
+		multiplexing(infd[1], outfd[0], errfd[0], log_fd);
         
 		//LOGD("Waiting for pid %d.", pid);
         waitpid(pid, &status, 0);
