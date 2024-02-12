@@ -976,7 +976,7 @@ static __attribute__ ((noreturn)) void deny(struct su_context *ctx) {
 				   case AID_ROOT:
 				   break;
 				   default:
-		            send_intent(ctx, DENY, ACTION_RESULT);
+		            send_intent(ctx, DENY, (ctx->is_premium == 1) ? ACTION_RESULT_PREMIUM : ACTION_RESULT);
 			    }
 	  }
 	 if (ctx->to.pref_switch_superuser == SUPERSU) {
@@ -1022,24 +1022,24 @@ int unshare(int flags) {
     fd = open(mnt, O_RDONLY);
     if (fd < 0) {//return 1;
 	PLOGE("open()");
-    // Create a second private mount namespace for our process
-    if (unshare(CLONE_NEWNS) < 0) {
-        PLOGE("unshare");
-        return;
-    }
+        // Create a second private mount namespace for our process
+        if (unshare(CLONE_NEWNS) < 0) {
+            PLOGE("unshare");
+            return;
+        }
 
-    if (mount(NULL/*"rootfs"*/, "/", NULL, MS_SLAVE | MS_REC, NULL) < 0) {
-        PLOGE("mount rootfs as slave");
-        return;
+        if (mount(NULL/*"rootfs"*/, "/", NULL, MS_SLAVE | MS_REC, NULL) < 0) {
+            PLOGE("mount rootfs as slave");
+            return;
+        }
+    } else {
+       // Switch to its namespace
+       ret = setns(fd, 0);
+       if (ret < 0) {   
+	   PLOGE("setns(): %d", ret);
+	}
+        close(fd);
     }
-	} else {
-	// Switch to its namespace
-    ret = setns(fd, 0);
-	if (ret < 0) {
-		PLOGE("setns(): %d", ret);
-	}
-    close(fd);
-	}
     //return ret;
 }
 
@@ -1087,15 +1087,15 @@ static __attribute__ ((noreturn)) void allow(struct su_context *ctx) {
 	  }
 	  
 	switch (ctx->notify) {
-			case 0: break;
-		    case 1:
-				 default:
-			     switch(ctx->from.uid) {
-				   case AID_ROOT:
-				   break;
-				   default:
-		            send_intent(ctx, ALLOW, ACTION_RESULT);
-			    }
+		case 0: break;
+		case 1:
+		default:
+		   switch(ctx->from.uid) {
+			  case AID_ROOT:
+			       break;
+			       default:
+		                  send_intent(ctx, ALLOW, (ctx->is_premium == 1) ? ACTION_RESULT_PREMIUM :  ACTION_RESULT);
+		 }
 	  }
    /* if ((ctx->from.uid != AID_ROOT) || (strcmp(ctx->from.bin, REQUESTOR) != 0) ) {
         send_intent(ctx, ALLOW, ACTION_RESULT);
@@ -1115,20 +1115,19 @@ static __attribute__ ((noreturn)) void allow(struct su_context *ctx) {
         arg0 = p;
     }
 
-	if (ctx->from.envp[0]) {
+    if (ctx->from.envp[0]) {
         envp = ctx->from.envp;
     }
 	
-	log_fd = open(ctx->to.log_path, O_CREAT | O_RDWR, 0666);
+    log_fd = open(ctx->to.log_path, O_CREAT | O_RDWR, 0666);
     if (log_fd < 0) {
         PLOGE("Opening log_fd");
        // return -1;
     }
-	chmod(ctx->to.log_path, 0666);
-	
+    chmod(ctx->to.log_path, 0666);
 	
     populate_environment(ctx);
-	set_identity(ctx->to.uid);
+    set_identity(ctx->to.uid);
 
 #define PARG(arg)									\
     (ctx->to.optind + (arg) < ctx->to.argc) ? " " : "",					\
@@ -1151,29 +1150,25 @@ static __attribute__ ((noreturn)) void allow(struct su_context *ctx) {
     ctx->to.argv[--argc] = arg0;
    int pid = fork();
     if (!pid) {
-		//if (ctx->enablemountnamespaceseparation) {
-			switch_mnt_ns(ctx->from.pid);
-		//}
-		populate_environment(ctx);
-	    set_identity(ctx->to.uid);
+	//if (ctx->enablemountnamespaceseparation) {
+	switch_mnt_ns(ctx->from.pid);
+	//}
+	populate_environment(ctx);
+	set_identity(ctx->to.uid);
 		
 	execv(ctx->to.shell, ctx->to.argv + argc/*, envp*/);
     err = errno;
     //PLOGE("exec");
     fprintf(stderr, "Cannot execute %s: %s\n", ctx->to.shell, strerror(err));
     exit(EXIT_FAILURE);
-	}
-	else {
-	    int status, code;
+    } else {
+	int status, code;
 
         //LOGD("Waiting for pid %d.", pid);
         waitpid(pid, &status, 0);
-        /*if (packageName) {
-            appops_finish_op_su(ctx->from.uid, packageName);
-        }*/
-		code = WEXITSTATUS(status);
+        code = WEXITSTATUS(status);
         exit(code/*status*/);
-	}
+    }
 }
 
 
@@ -1183,118 +1178,102 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
     struct timeval tv;
     fd_set fds;
     int rin;
-	int rout;
-	int rerr;
+    int rout;
+    int rerr;
     
     /* Wait 1 second for data arrival, then give up. */
     tv.tv_sec = 1;
     tv.tv_usec = 0;
 	
 	ssize_t inlen;
-    ssize_t outlen;
+        ssize_t outlen;
 	ssize_t errlen;
-	ssize_t written;
+	int written;
 	
 	char input[ARG_MAX];
 	char output[ARG_MAX];
 	char err[ARG_MAX];
-	
 
-    FD_ZERO(&fds);
-    FD_SET(STDIN_FILENO, &fds);
+        FD_ZERO(&fds);
+        FD_SET(STDIN_FILENO, &fds);
 	FD_SET(outfd, &fds);
 	FD_SET(errfd, &fds);
    
 	while (1) {
 			
-			FD_ZERO(&fds);
+	  FD_ZERO(&fds);
+          FD_SET(STDIN_FILENO, &fds);
+
+	  rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
+			
+	  if (rin >= 1) {
+	      LOGD("rin: %d", rin)
+	      memset(input, 0, sizeof(input));
+		        
+	     if ((inlen = read(STDIN_FILENO, input, 4096)) > 0) {
+		  LOGD("input:%s", input);
+	          written =  write(infd, input, inlen);
+	          LOGD("written to infd %d", written);
+		  write(log_fd, input, inlen);
+	     }
+	  }
+		
+	  FD_ZERO(&fds);
+	  FD_SET(outfd, &fds);
+
+ 	  rout = select(outfd + 1, &fds, NULL, NULL, &tv);
+  	 
+	  if (rout >= 1) {
+	     LOGD("rout: %d", rout);
+	     memset(output, 0, sizeof(output));
+			
+             if ((outlen = read(outfd, output, 4096)) > 0) {
+	          written = write(STDOUT_FILENO, output, outlen);
+	          LOGD(" written to STDOUT_FILENO: %d", written);
+
+                  write(log_fd, "{", strlen("{"));
+                  write(log_fd, output, outlen); write(log_fd, "\n", strlen("\n"));
+                  write(log_fd, "}", strlen("}"));
+                  write(log_fd, "\n", strlen("\n"));
+		  // WK: added on 24/01/2024: this fixes the "exit" command issue:
+		  continue;				
+              }
+	  }
+
+	  FD_ZERO(&fds);
+          FD_SET(errfd, &fds);
+		
+	  rerr = select(errfd + 1, &fds, NULL, NULL, &tv); 
+		
+	  if (rerr >= 1) {
+	      LOGD("rerr: %d", rerr);
+		        
+	      memset(err, 0, sizeof(err));
+		        
+	      if ((errlen = read(errfd, err, 4096)) > 0) {
+		    LOGD("error:%s", err);
+		    written = write(STDERR_FILENO, err, errlen);
+		    LOGD("written to STDERR_FILENO: %d", written);
+
+                    write(log_fd, "!", strlen("!")); write(log_fd, err, errlen);
+                    write(log_fd, "\n", strlen("\n"));
+                    write(log_fd, "!", strlen("!")); write(log_fd, "\n", strlen("\n"));
+	  	    // WK: added on 24/01/2024: this fixes the "exit" command issue:
+		    continue;
+	     }
+             // WK: added on 24/01/2024: this fixes the "exit" command issue:
+	    FD_ZERO(&fds);
             FD_SET(STDIN_FILENO, &fds);
-
-		    rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
-			
-			LOGD("rin: %d", rin);
-			if (rin >= 1) {
-	            memset(input, 0, sizeof(input));
-		        
-				if ((inlen = read(STDIN_FILENO, input, 4096)) > 0) {
-			         LOGD("input:%s", input);
-				     written =  write(infd, input, inlen);
-				     LOGD("written to infd %d", written);
-
-write(log_fd, input, inlen);
-	
-			    }
-	        }
-		    LOGD("input: %s", input);
 		
-			FD_ZERO(&fds);
-			FD_SET(outfd, &fds);
-
-			rout = select(outfd + 1, &fds, NULL, NULL, &tv);
-			LOGD("rout: %d", rout);
-		   
-			if (rout >= 1) {
-	            memset(output, 0, sizeof(output));
-			
-                if ((outlen = read(outfd, output, 4096)) > 0) {
-				    LOGD("output():%s", output);
-				    written = write(STDOUT_FILENO, output, outlen);
-				    LOGD(" written to STDOUT_FILENO: %d", written);
-
-
-write(log_fd, "{", strlen("{"));
-write(log_fd, output, outlen); write(log_fd, "\n", strlen("\n"));
-write(log_fd, "}", strlen("}"));
-write(log_fd, "\n", strlen("\n"));
-					
-					// WK: added on 24/01/2024: this fixes the "exit" command issue:
-					continue;				
-                }
-		    }
-		    LOGD("output: %s", output);
-	     
-	        FD_ZERO(&fds);
-   
-				
-	        FD_SET(errfd, &fds);
-		
-		    rerr = select(errfd + 1, &fds, NULL, NULL, &tv); 
-		
-		    LOGD("rerr: %d", rerr);
-		
-		    if (rerr >= 1) {
-		        LOGD("reread: %d", rerr);
-		        
-				memset(err, 0, sizeof(err));
-		        
-				if ((errlen = read(errfd, err, 4096)) > 0) {
-		             LOGD("error:%s", err);
-			         written = write(STDERR_FILENO, err, errlen);
-			         LOGD("written to STDERR_FILENO: %d", written);
-
-
-write(log_fd, "!", strlen("!")); write(log_fd, err, errlen);
-write(log_fd, "\n", strlen("\n"));
-write(log_fd, "!", strlen("!")); write(log_fd, "\n", strlen("\n"));
-					 // WK: added on 24/01/2024: this fixes the "exit" command issue:
-					 continue;
-		        }
-
-// WK: added on 24/01/2024: this fixes the "exit" command issue:
-				FD_ZERO(&fds);
-    FD_SET(STDIN_FILENO, &fds);
-		
-				rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
+	    rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
 			    
-				LOGD ("rin2: %d", rin);
-				if (rin == 0) {
-				// WK: added on 24/01/2024: this fixes the "exit" command issue: if there is no data on STDIN_FILENO, break out of the so the process continue its normal flow and call waitpid().
-					break;
-				}	        
-}
-		    LOGD("error: %s", err);
-	}
-	
+	    LOGD ("rin2: %d", rin);
+	    if (rin == 0) {
+		// WK: added on 24/01/2024: this fixes the "exit" command issue: if there is no data on STDIN_FILENO, break out of the so the process continue its normal flow and call waitpid().
+		break;
+	    }	        
+        }   
+    }
 }
 
 static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
@@ -1347,7 +1326,7 @@ static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
 				   case AID_ROOT:
 				   break;
 				   default:
-		            send_intent(ctx, ALLOW, ACTION_RESULT);
+		            send_intent(ctx, ALLOW, (ctx->is_premium == 1) ? ACTION_RESULT_PREMIUM :   ACTION_RESULT);
 			    }
 	  }
    /* if ((ctx->from.uid != AID_ROOT) || (strcmp(ctx->from.bin, REQUESTOR) != 0) ) {
@@ -1531,7 +1510,7 @@ unsigned 	int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
 				   case AID_ROOT:
 				   break;
 				   default:
-		            send_intent(ctx, ALLOW, ACTION_RESULT);
+		            send_intent(ctx, ALLOW, (ctx->is_premium == 1) ? ACTION_RESULT_PREMIUM : ACTION_RESULT);
 			    }
 	  }
 	/*if (ctx->from.uid!= AID_ROOT) {
@@ -1775,7 +1754,7 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
 				   case AID_ROOT:
 				   break;
 				   default:
-		            send_intent(ctx, ALLOW, ACTION_RESULT);
+		            send_intent(ctx, ALLOW, (ctx->is_premium == 1) ? ACTION_RESULT_PREMIUM : ACTION_RESULT);
 			    }
 	  }
 	
@@ -2619,48 +2598,47 @@ if (!strstr(ctx.from.bin, "eu.chainfire.supersu")) {
     switch (dballow) {
         case INTERACTIVE: break;
         case ALLOW: {
-			LOGD("database access allowed: %d", dballow);
-			if (ctx.pref_full_command_logging == 1) {
-				if (isatty(STDIN_FILENO)) {
-					terminal_allow(&ctx);
-				} else {
-					fork_allow(&ctx);
-				}
-			}
-			allow(&ctx);	/* never returns */
-		}
+	     LOGD("database access allowed: %d", dballow);
+	     if (ctx.pref_full_command_logging == 1) {
+		 if (isatty(STDIN_FILENO)) {
+		     terminal_allow(&ctx);
+		 } else {
+		     fork_allow(&ctx);
+		 }
+	     }
+	     allow(&ctx);	/* never returns */
+	}
         case DENY:
         default: 
 		LOGD("database access denied: %d", dballow);
 		deny(&ctx);		/* never returns too */
     }
 
-    if (send_intent(&ctx, INTERACTIVE, ACTION_REQUEST) < 0) {
+    if (send_intent(&ctx, INTERACTIVE, (ctx.is_premium == 1) ? ACTION_REQUEST_PREMIUM : ACTION_REQUEST) < 0) {
         deny(&ctx);
     }
 	while(( dballow = database_check(&ctx)) == INTERACTIVE) {
            sleep (1);
-		   continue;
+	   continue;
 	}
 	
 	switch (dballow) {
         case ALLOW: {
-			LOGD("prompt access allowed: %d", dballow);
-			if (ctx.pref_full_command_logging == 1) {
-				if (isatty(STDIN_FILENO)) {
-					terminal_allow(&ctx);
-				} else {
-					fork_allow(&ctx);
-				}
-			}
-			allow(&ctx);	/* never returns */
+		LOGD("prompt access allowed: %d", dballow);
+		if (ctx.pref_full_command_logging == 1) {
+		    if (isatty(STDIN_FILENO)) {
+			terminal_allow(&ctx);
+		     } else {
+			 fork_allow(&ctx);
+		     }
 		}
+		allow(&ctx);	/* never returns */
+	}
         case DENY: 
 		default:{
 			LOGD("prompt access denied: %d", dballow);
 			deny(&ctx);		/* never returns too */
 		}
-        
     }
     deny(&ctx);
     return -1;
