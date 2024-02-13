@@ -807,20 +807,25 @@ static void user_init(struct su_context *ctx)
 {
 	        
 			if (ctx->to.pref_switch_superuser == SUPERPOWER) {
-        	snprintf(ctx->user.data_path, PATH_MAX, "/data/data/%s",
-        	        REQUESTOR);
-			snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
-			LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
+			    if (ctx->is_premium == 1) {
+				snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
+                                ctx->user.userid, REQUESTOR_PREMIUM);
+			     } else {
+        	                snprintf(ctx->user.data_path, PATH_MAX, "/data/data/%s",
+        	                REQUESTOR);
+			    }
+			    snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
+			    LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
 			} else if (ctx->to.pref_switch_superuser == SUPERSU) {
-        	snprintf(ctx->user.data_path, PATH_MAX, "/data/data/%s",
-        	        "eu.chainfire.supersu");
-			snprintf(ctx->user.logs_path, PATH_MAX, "%s/logs", ctx->user.data_path);
-			LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
+        	            snprintf(ctx->user.data_path, PATH_MAX, "/data/data/%s",
+        	            "eu.chainfire.supersu");
+			    snprintf(ctx->user.logs_path, PATH_MAX, "%s/logs", ctx->user.data_path);
+			    LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
 			} else if (ctx->to.pref_switch_superuser == MAGISK) {
-        	snprintf(ctx->user.data_path, PATH_MAX, "/data/data/%s",
-        	          "com.topjohnwu.magisk");
-			snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
-			LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
+        	            snprintf(ctx->user.data_path, PATH_MAX, "/data/data/%s",
+        	            "com.topjohnwu.magisk");
+			    snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
+			    LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
 			} 
 		
 	
@@ -828,28 +833,38 @@ static void user_init(struct su_context *ctx)
     	ctx->user.userid = ctx->from.uid / 100000;
     	if (!ctx->user.owner_mode) {
 			if (ctx->to.pref_switch_superuser == SUPERPOWER) {
-        	snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
-        	        ctx->user.userid, REQUESTOR);
-			snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
-			LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
-			}
-			else if (ctx->to.pref_switch_superuser == SUPERSU) {
-        	snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
-        	        ctx->user.userid, "eu.chainfire.supersu");
-			snprintf(ctx->user.logs_path, PATH_MAX, "%s/logs", ctx->user.data_path);
-			LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
+			    if (ctx->is_premium == 1) {
+				snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
+                                ctx->user.userid, REQUESTOR_PREMIUM);
+			     } else {
+        	               snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
+        	               ctx->user.userid, REQUESTOR);
+			     }
+			     snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
+			     LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
+			} else if (ctx->to.pref_switch_superuser == SUPERSU) {
+        	            snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
+        	            ctx->user.userid, "eu.chainfire.supersu");
+			    snprintf(ctx->user.logs_path, PATH_MAX, "%s/logs", ctx->user.data_path);
+			    LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
 			} else if (ctx->to.pref_switch_superuser == MAGISK) {
-        	snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
-        	        ctx->user.userid,  "com.topjohnwu.magisk");
-			snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
-			LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
+        	           snprintf(ctx->user.data_path, PATH_MAX, "/data/user/%d/%s",
+        	           ctx->user.userid,  "com.topjohnwu.magisk");
+			   snprintf(ctx->user.logs_path, PATH_MAX, "%s/files/logs", ctx->user.data_path);
+			   LOGD("ctx->user.logs_path: %s", ctx->user.logs_path );	
 			} 
 				
-				
-    	    snprintf(ctx->user.store_path, PATH_MAX, "/data/user/%d/%s/files/stored",
-    	            ctx->user.userid, REQUESTOR);
-        	snprintf(ctx->user.store_default, PATH_MAX, "/data/user/%d/%s/files/stored/default",
-        	        ctx->user.userid, REQUESTOR);
+		if (ctx->is_premium == 1)  {
+		    snprintf(ctx->user.store_path, PATH_MAX, "/data/user/%d/%s/files/stored",
+    	            ctx->user.userid, REQUESTOR_PREMIUM);
+        	    snprintf(ctx->user.store_default, PATH_MAX, "/data/user/%d/%s/files/stored/default",
+        	    ctx->user.userid, REQUESTOR_PREMIUM);
+		} else {	
+    	           snprintf(ctx->user.store_path, PATH_MAX, "/data/user/%d/%s/files/stored",
+    	           ctx->user.userid, REQUESTOR);
+        	   snprintf(ctx->user.store_default, PATH_MAX, "/data/user/%d/%s/files/stored/default",
+        	   ctx->user.userid, REQUESTOR);
+		}
     	} 
     }
 	
@@ -858,7 +873,6 @@ static void user_init(struct su_context *ctx)
 	        snprintf(ctx->user.logs_path, PATH_MAX, "/data/user_de/%d/eu.chainfire.supersu/logs", ctx->user.userid);
 	    }
 	}
-	
 }
 
 static void populate_environment(const struct su_context *ctx)
@@ -872,10 +886,10 @@ static void populate_environment(const struct su_context *ctx)
     if (pw) {
         setenv("HOME", pw->pw_dir, 1);
         setenv("SHELL", ctx->to.shell, 1);
-        if (ctx->to.login || ctx->to.uid) {
+        //if (ctx->to.login || ctx->to.uid) {
             setenv("USER", pw->pw_name, 1);
             setenv("LOGNAME", pw->pw_name, 1);
-        }
+       // }
     }
 }
 
