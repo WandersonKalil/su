@@ -198,11 +198,14 @@ int set_stdin_raw(void) {
     new_termios.c_cc[VTIME] = 0;
     // WK: we should set the attributes on stdout instead of stdin to keep the stin intact from pipe commands like su -c ps | grep su
     // only if this method was called by pump_stdin_async() method.
-	// The echo only occurs on stdout: the stdin is echoed on stdout: stdin: id stdout: id
-	if (tcsetattr(STDOUT_FILENO/*STDIN_FILENO*/, TCSAFLUSH, &new_termios) < 0) {
+    // The echo only occurs on stdout: the stdin is echoed on stdout: stdin: id stdout: id
+    if (tcsetattr(STDOUT_FILENO/*STDIN_FILENO*/, TCSAFLUSH, &new_termios) < 0) {
         return -1;
     }
 
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &new_termios) < 0) {
+        return -1;
+    }
     stdin_is_raw = 1;
 
     return 0;
