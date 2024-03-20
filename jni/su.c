@@ -1139,9 +1139,6 @@ static __attribute__ ((noreturn)) void allow(struct su_context *ctx) {
        // return -1;
     }
     chmod(ctx->to.log_path, 0666);
-	
-    populate_environment(ctx);
-    set_identity(ctx->to.uid);
 
 #define PARG(arg)									\
     (ctx->to.optind + (arg) < ctx->to.argc) ? " " : "",					\
@@ -1361,20 +1358,16 @@ static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
         arg0 = p;
     }
 
-	if (ctx->from.envp[0]) {
+    if (ctx->from.envp[0]) {
         envp = ctx->from.envp;
     }
 	
-	log_fd = open(ctx->to.log_path, O_CREAT | O_RDWR, 0666);
+    log_fd = open(ctx->to.log_path, O_CREAT | O_RDWR, 0666);
     if (log_fd < 0) {
         PLOGE("Opening log_fd");
        // return -1;
     }
-	chmod(ctx->to.log_path, 0666);
-	
-	
-    populate_environment(ctx);
-	set_identity(ctx->to.uid);
+    chmod(ctx->to.log_path, 0666);
 
 #define PARG(arg)									\
     (ctx->to.optind + (arg) < ctx->to.argc) ? " " : "",					\
@@ -1407,42 +1400,32 @@ static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
    int pid = fork();
     if (!pid) {
 		//if (ctx->enablemountnamespaceseparation) {
-			switch_mnt_ns(ctx->from.pid);
+	    switch_mnt_ns(ctx->from.pid);
 		//}
-		populate_environment(ctx);
+	    populate_environment(ctx);
 	    set_identity(ctx->to.uid);
 		
-		if (-1 == dup2(infd[0], STDIN_FILENO)) {
-      
+	    if (-1 == dup2(infd[0], STDIN_FILENO)) {
 		// PLOGE("dup2 child infd");
-   
 		exit(-1);
-      
-		}
+            }
 		
-		if (-1 == dup2(outfd[1], STDOUT_FILENO)) {
-  
-		// PLOGE("dup2 child outfd");
-     
-		exit(-1);
-       
-		}
+	    if (-1 == dup2(outfd[1], STDOUT_FILENO)) {
+               // PLOGE("dup2 child outfd");
+               exit(-1);
+	    }
 		
+	    if (-1 == dup2(errfd[1], STDERR_FILENO)) {
+                //PLOGE("dup2 child errfd");
+                exit(-1);
+            }
 		
-		if (-1 == dup2(errfd[1], STDERR_FILENO)) {
-  
-		//PLOGE("dup2 child errfd");
-
-		exit(-1);
-      
-		}
-		
-		close(infd[0]);
-		close(infd[1]);
-		close(outfd[0]);
-		close(outfd[1]);
-		close(errfd[0]);
-		close(errfd[1]);
+	    close(infd[0]);
+	    close(infd[1]);
+	    close(outfd[0]);
+	    close(outfd[1]);
+	    close(errfd[0]);
+	    close(errfd[1]);
 	execv(ctx->to.shell, ctx->to.argv + argc/*, envp*/);
    
 	err = errno;
@@ -1452,14 +1435,14 @@ static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
 	}
 	else {
 	    int status, code;
-        close(infd[0]);
+                close(infd[0]);
 		close(outfd[1]);
 		close(errfd[1]);
 		multiplexing(infd[1], outfd[0], errfd[0], log_fd);
         
 		//LOGD("Waiting for pid %d.", pid);
         waitpid(pid, &status, 0);
-close(infd[1]);
+                close(infd[1]);
 		close(outfd[0]);
 		close(errfd[0]);
         
@@ -1554,10 +1537,7 @@ unsigned 	int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
         PLOGE("Opening log_fd");
        // return -1;
     }
-	chmod(ctx->to.log_path, 0666);
-	
-    populate_environment(ctx);
-	set_identity(ctx->to.uid);
+    chmod(ctx->to.log_path, 0666);
 
 #define PARG(arg)									\
     (ctx->to.optind + (arg) < ctx->to.argc) ? " " : "",					\
@@ -1799,10 +1779,7 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
         PLOGE("Opening log_fd");
        // return -1;
     }
-	chmod(ctx->to.log_path, 0666);
-	
-    populate_environment(ctx);
-	set_identity(ctx->to.uid);
+    chmod(ctx->to.log_path, 0666);
 
 #define PARG(arg)									\
     (ctx->to.optind + (arg) < ctx->to.argc) ? " " : "",					\
