@@ -1218,15 +1218,20 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 	  rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
 			
 	  if (rin >= 1) {
-	      LOGD("rin: %d", rin);
+	      LOGD("select(STDIN_FILENO) returned: %d", rin);
 	      memset(input, 0, sizeof(input));
 		        
 	     if ((inlen = read(STDIN_FILENO, input, 4096)) > 0) {
+		  input[inlen] = '\0';
 		  LOGD("input:%s", input);
 	          written =  write(infd, input, inlen);
 	          LOGD("written to infd %d", written);
 		  write(log_fd, input, inlen);
+	     } else {
+		 PLOGE("read(STDIN_FILENO)");
 	     }
+	  } else {
+	      PLOGE("select(STDIN_FILENO)");
 	  }
 		
 	  FD_ZERO(&fds);
@@ -1235,11 +1240,12 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
  	  rout = select(outfd + 1, &fds, NULL, NULL, &tv);
   	 
 	  if (rout >= 1) {
-	     LOGD("rout: %d", rout);
+	     LOGD("select(outfd) returned: %d", rout);
 	     memset(output, 0, sizeof(output));
 			
              if ((outlen = read(outfd, output, 4096)) > 0) {
-	          written = write(STDOUT_FILENO, output, outlen);
+	          output[outlen] = '\0';
+		  written = write(STDOUT_FILENO, output, outlen);
 	          LOGD(" written to STDOUT_FILENO: %d", written);
 
                   write(log_fd, "{", strlen("{"));
@@ -1248,7 +1254,11 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
                   write(log_fd, "\n", strlen("\n"));
 		  // WK: added on 24/01/2024: this fixes the "exit" command issue:
 		  continue;				
-              }
+              } else {
+		  PLOGE("read(outfd)");
+	      }
+	  } else {
+	      PLOGE("select(outfd)");
 	  }
 
 	  FD_ZERO(&fds);
@@ -1257,11 +1267,12 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 	  rerr = select(errfd + 1, &fds, NULL, NULL, &tv); 
 		
 	  if (rerr >= 1) {
-	      LOGD("rerr: %d", rerr);
+	      LOGD("select(errfd) returned: %d", rerr);
 		        
 	      memset(err, 0, sizeof(err));
 		        
 	      if ((errlen = read(errfd, err, 4096)) > 0) {
+		    err[errlen] = '\0';
 		    LOGD("error:%s", err);
 		    written = write(STDERR_FILENO, err, errlen);
 		    LOGD("written to STDERR_FILENO: %d", written);
@@ -1271,19 +1282,37 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
                     write(log_fd, "!", strlen("!")); write(log_fd, "\n", strlen("\n"));
 	  	    // WK: added on 24/01/2024: this fixes the "exit" command issue:
 		    continue;
-	     }
-             // WK: added on 24/01/2024: this fixes the "exit" command issue:
-	    FD_ZERO(&fds);
-            FD_SET(STDIN_FILENO, &fds);
+	     } else {
+		 PLOGE("read(errfd)");
+                 // WK: added on 24/01/2024: this fixes the "exit" command issue:
+	         FD_ZERO(&fds);
+                 FD_SET(STDIN_FILENO, &fds);
 		
-	    rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
+	         rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
 			    
-	    LOGD ("rin2: %d", rin);
-	    if (rin == 0) {
-		// WK: added on 24/01/2024: this fixes the "exit" command issue: if there is no data on STDIN_FILENO, break out of the so the process continue its normal flow and call waitpid().
-		break;
-	    }	        
-        }   
+	         LOGD ("select(STDIN_FILENO2) returned: %d", rin);
+	         if (rin < 1) {
+		     PLOGE("select(STDIN_FILENO2)");
+		     // WK: added on 24/01/2024: this fixes the "exit" command issue: if there is no data on STDIN_FILENO, break out of the so the process continue its normal flow and call waitpid().
+		     break;
+	         } else {
+	           LOGD("rin2: %d", rin);
+	           memset(input, 0, sizeof(input));
+		        
+	           if ((inlen = read(STDIN_FILENO, input, 4096)) > 0) {
+		        input[inlen] = '\0';
+		        LOGD("input2:%s", input);
+	                written =  write(infd, input, inlen);
+	                LOGD("written to infd %d", written);
+		        write(log_fd, input, inlen);
+	           } else {
+		      PLOGE("read(STDIN_FILENO2)");
+	           }
+	        }
+	     }	        
+	 } else {
+	    PLOGE("select(errfd)");  
+	 }
     }
 }
 
