@@ -1192,8 +1192,7 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
     int rout;
     int rerr;
     
-    /* Wait 1 second for data arrival, then give up. */
-    tv.tv_sec = 1;
+    tv.tv_sec = 0;
     tv.tv_usec = 0;
 	
 	ssize_t inlen;
@@ -1228,11 +1227,9 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 	          LOGD("written to infd %d", written);
 		  write(log_fd, input, inlen);
 	     } else {
-		 PLOGE("read(STDIN_FILENO)");
+		 LOGW("There is no data available on read(STDIN_FILENO)!");
 	     }
-	  } else {
-	      PLOGE("select(STDIN_FILENO)");
-	  }
+	  } 
 		
 	  FD_ZERO(&fds);
 	  FD_SET(outfd, &fds);
@@ -1255,12 +1252,10 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 		  // WK: added on 24/01/2024: this fixes the "exit" command issue:
 		  continue;				
               } else {
-		  PLOGE("read(outfd)");
+		  LOGW("There is no data available on read(outfd)!");
 	      }
-	  } else {
-	      PLOGE("select(outfd)");
-	  }
-
+	  } 
+		
 	  FD_ZERO(&fds);
           FD_SET(errfd, &fds);
 		
@@ -1290,9 +1285,9 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 		
 	         rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
 			    
-	         LOGD ("select(STDIN_FILENO2) returned: %d", rin);
+	         LOGD ("select(STDIN_FILENO) returned: %d", rin);
 	         if (rin < 1) {
-		     PLOGE("select(STDIN_FILENO2)");
+		     LOGW("There is no data available on select(STDIN_FILENO): the 'exit' command was called! Calling 'break' so we go out of the 'while' loop and do not get stuck into the prompt command line!");
 		     // WK: added on 24/01/2024: this fixes the "exit" command issue: if there is no data on STDIN_FILENO, break out of the so the process continue its normal flow and call waitpid().
 		     break;
 	         } else {
@@ -1306,13 +1301,11 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 	                LOGD("written to infd %d", written);
 		        write(log_fd, input, inlen);
 	           } else {
-		      PLOGE("read(STDIN_FILENO2)");
+		      LOGW("read(STDIN_FILENO): no data available on STDIN_FILENO!");
 	           }
 	        }
 	     }	        
-	 } else {
-	    PLOGE("select(errfd)");  
-	 }
+	 } 
     }
 }
 
