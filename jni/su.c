@@ -1215,7 +1215,16 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
           FD_SET(STDIN_FILENO, &fds);
 
 	  rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
-			
+
+	  if (rin < 1) {
+		 // WK: added on 24/01/2024: this fixes the "exit" command issue: if there is no data on STDIN_FILENO, break out of the loop so the process continue its normal flow and call waitpid().
+		 // "rin == 0" means that the time out has finished and the STDIN was closed, but our "rout == 1" and "rerr == 1" are still open (they will be closed after we call waitpid().
+		 if((rin == 0) && (rout == 1) && (rerr == 1)) {
+		     LOGW("select(STDIN_FILENO) returned: %d. There is no data available on select(STDIN_FILENO): the 'exit' command was called! Calling 'break' so we go out of the 'while' loop and do not get stuck into the prompt command line!", rin);
+		     break;
+		 }
+	  }
+		
 	  if (rin >= 1) {
 	      LOGD("select(STDIN_FILENO) returned: %d", rin);
 	      memset(input, 0, sizeof(input));
@@ -1227,7 +1236,11 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 	          LOGD("written to infd %d", written);
 		  write(log_fd, input, inlen);
 	     } else {
-		 LOGW("There is no data available on read(STDIN_FILENO)!");
+		 LOGW("There is no data available on read(STDIN_FILENO) (Ctrl+D was sent! Terminating program)!");
+		 // WK, on 05/07/2024: C^D (control + D) signal was sent to us. Close "infd" to cause the child process to exit 
+                 // so we can continue and retrieve the exit code and give the Terminal's control back to the user.
+		 close(infd);
+		 break;
 	     }
 	  } 
 		
@@ -1246,7 +1259,8 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 	          LOGD(" written to STDOUT_FILENO: %d", written);
 
                   write(log_fd, "{", strlen("{"));
-                  write(log_fd, output, outlen); write(log_fd, "\n", strlen("\n"));
+                  write(log_fd, output, outlen); 
+		  write(log_fd, "\n", strlen("\n"));
                   write(log_fd, "}", strlen("}"));
                   write(log_fd, "\n", strlen("\n"));
 		  // WK: added on 24/01/2024: this fixes the "exit" command issue:
@@ -1272,39 +1286,17 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 		    written = write(STDERR_FILENO, err, errlen);
 		    LOGD("written to STDERR_FILENO: %d", written);
 
-                    write(log_fd, "!", strlen("!")); write(log_fd, err, errlen);
+                    write(log_fd, "!", strlen("!"));
+		    write(log_fd, err, errlen);
                     write(log_fd, "\n", strlen("\n"));
-                    write(log_fd, "!", strlen("!")); write(log_fd, "\n", strlen("\n"));
+                    write(log_fd, "!", strlen("!"));
+		    write(log_fd, "\n", strlen("\n"));
 	  	    // WK: added on 24/01/2024: this fixes the "exit" command issue:
 		    continue;
 	     } else {
-		 PLOGE("read(errfd)");
-                 // WK: added on 24/01/2024: this fixes the "exit" command issue:
-	         FD_ZERO(&fds);
-                 FD_SET(STDIN_FILENO, &fds);
-		
-	         rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
-			    
-	         LOGD ("select(STDIN_FILENO) returned: %d", rin);
-	         if (rin < 1) {
-		     LOGW("There is no data available on select(STDIN_FILENO): the 'exit' command was called! Calling 'break' so we go out of the 'while' loop and do not get stuck into the prompt command line!");
-		     // WK: added on 24/01/2024: this fixes the "exit" command issue: if there is no data on STDIN_FILENO, break out of the so the process continue its normal flow and call waitpid().
-		     break;
-	         } else {
-	           LOGD("rin2: %d", rin);
-	           memset(input, 0, sizeof(input));
-		        
-	           if ((inlen = read(STDIN_FILENO, input, 4096)) > 0) {
-		        input[inlen] = '\0';
-		        LOGD("input2:%s", input);
-	                written =  write(infd, input, inlen);
-	                LOGD("written to infd %d", written);
-		        write(log_fd, input, inlen);
-	           } else {
-		      LOGW("read(STDIN_FILENO): no data available on STDIN_FILENO!");
-	           }
-	        }
-	     }	        
+		 LOGW("There is no data available on read(errfd)!");
+	     }
+	   }
 	 } 
     }
 }
