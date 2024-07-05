@@ -1296,8 +1296,7 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 	     } else {
 		 LOGW("There is no data available on read(errfd)!");
 	     }
-	   }
-	 } 
+	  }
     }
 }
 
