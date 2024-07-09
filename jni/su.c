@@ -1177,8 +1177,16 @@ static __attribute__ ((noreturn)) void allow(struct su_context *ctx) {
 
         //LOGD("Waiting for pid %d.", pid);
         waitpid(pid, &status, 0);
-        code = WEXITSTATUS(status);
-        exit(code/*status*/);
+        if (WIFEXITED(status)) {
+            code = WEXITSTATUS(status);
+			LOGD("Process terminated with status WEXITSTATUS[%d] and code[%d].", WEXITSTATUS(status), code);
+        } else if (WIFSIGNALED(status)) {
+            code = 128 + WTERMSIG(status);
+			LOGD("Process terminated with signal status WTERMSIG[%d] and code[%d].", WTERMSIG(status), code);
+        } else {
+            code = -1;
+        }
+        exit(code);
     }
 }
 
@@ -1453,13 +1461,22 @@ static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
 		close(errfd[1]);
 		multiplexing(infd[1], outfd[0], errfd[0], log_fd);
         
-		//LOGD("Waiting for pid %d.", pid);
+		LOGD("Waiting for pid %d.", pid);
         waitpid(pid, &status, 0);
+
+	if (WIFEXITED(status)) {
+            code = WEXITSTATUS(status);
+			LOGD("Process terminated with status WEXITSTATUS[%d] and code[%d].", WEXITSTATUS(status), code);
+        } else if (WIFSIGNALED(status)) {
+            code = 128 + WTERMSIG(status);
+			LOGD("Process terminated with signal status WTERMSIG[%d] and code[%d].", WTERMSIG(status), code);
+        } else {
+            code = -1;
+        }
                 close(infd[1]);
 		close(outfd[0]);
 		close(errfd[0]);
-        
-		code = WEXITSTATUS(status);
+  
         exit(code);
 	}
 }
@@ -1695,8 +1712,16 @@ unsigned 	int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
 
         LOGD("Waiting for pid %d.", pid);
         waitpid(pid, &status, 0);
-        
-		code = WEXITSTATUS(status);
+        if (WIFEXITED(status)) {
+            code = WEXITSTATUS(status);
+			LOGD("Process terminated with status WEXITSTATUS[%d] and code[%d].", WEXITSTATUS(status), code);
+        } else if (WIFSIGNALED(status)) {
+            code = 128 + WTERMSIG(status);
+			LOGD("Process terminated with signal status WTERMSIG[%d] and code[%d].", WTERMSIG(status), code);
+        } else {
+            code = -1;
+        }
+
         exit(code);
     }
 }
@@ -2047,6 +2072,16 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
 		}*/
 			
         waitpid(pid, &status, 0);
+
+       if (WIFEXITED(status)) {
+            code = WEXITSTATUS(status);
+	    LOGD("Process terminated with status WEXITSTATUS[%d] and code[%d].", WEXITSTATUS(status), code);
+        } else if (WIFSIGNALED(status)) {
+            code = 128 + WTERMSIG(status);
+            LOGD("Process terminated with signal status WTERMSIG[%d] and code[%d].", WTERMSIG(status), code);
+        } else {
+            code = -1;
+        }
 		close(infd[1]);
 	    close(outfd[0]);
 		close(errfd[0]);
@@ -2069,8 +2104,7 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
 			kill(pid, SIGKILL);
 			exit(0);
 		}*/
-        
-		code = WEXITSTATUS(status);
+       
         exit(code);
     }
 }
