@@ -388,13 +388,21 @@ static int daemon_accept(int fd) {
 
         free(pts_slave);
 
-        LOGD("waiting for child exit");
+        LOGD("waiting for child [%d] exit", child);
         if (waitpid(child, &status, 0) > 0) {
+        if (WIFEXITED(status)) {
             code = WEXITSTATUS(status);
-        }
-        else {
+            LOGD("Process terminated with status WEXITSTATUS[%d] and code[%d].", WEXITSTATUS(status), code);
+        } else if (WIFSIGNALED(status)) {
+            code = 128 + WTERMSIG(status);
+	    LOGD("Process terminated with signal status WTERMSIG[%d] and code[%d].", WTERMSIG(status), code);
+        } else {
             code = -1;
         }
+    }
+    else {
+        code = -1;
+    }
 
         // Is the file descriptor actually open?
         if (fcntl(fd, F_GETFD) == -1) {
