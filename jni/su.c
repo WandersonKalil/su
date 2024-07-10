@@ -404,7 +404,7 @@ static void read_options(struct su_context *ctx)
 		
 		mkdir(requests/*REQUESTOR_CACHE_PATH*/, 0770);
         if (chown(requests/*REQUESTOR_CACHE_PATH*/, AID_ROOT, AID_ROOT)) {
-            PLOGE("chown (%s, %ld, %ld)", requests/*REQUESTOR_CACHE_PATH*/, AID_ROOT, AID_ROOT);
+            PLOGE("chown (%s, %d, %d)", requests/*REQUESTOR_CACHE_PATH*/, AID_ROOT, AID_ROOT);
            // deny(&ctx);
         }
 		
@@ -1223,15 +1223,6 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
           FD_SET(STDIN_FILENO, &fds);
 
 	  rin = select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv);
-
-	  if (rin < 1) {
-		 // WK: added on 24/01/2024: this fixes the "exit" command issue: if there is no data on STDIN_FILENO, break out of the loop so the process continue its normal flow and call waitpid().
-		 // "rin == 0" means that the time out has finished and the STDIN was closed, but our "rout == 1" and "rerr == 1" are still open (they will be closed after we call waitpid().
-		 if((rin == 0) && (rout == 1) && (rerr == 1)) {
-		     LOGW("select(STDIN_FILENO) returned: %d. There is no data available on select(STDIN_FILENO): the 'exit' command was called! Calling 'break' so we go out of the 'while' loop and do not get stuck into the prompt command line!", rin);
-		     break;
-		 }
-	  }
 		
 	  if (rin >= 1) {
 	      LOGD("select(STDIN_FILENO) returned: %d", rin);
@@ -1302,7 +1293,9 @@ static void multiplexing(int infd, int outfd, int errfd, int log_fd)
 	  	    // WK: added on 24/01/2024: this fixes the "exit" command issue:
 		    continue;
 	     } else {
-		 LOGW("There is no data available on read(errfd)!");
+		 LOGW("There is no data available on read(errfd): [%d]! The 'exit/kill' command was called! Calling 'break' so we go out of the 'while' loop and do not get stuck into the prompt command line!", errlen);
+		 // WK: added on 24/01/2024: this fixes the "exit" command issue: if there is no data on STDIN_FILENO, break out of the loop so the process continue its normal flow and call waitpid().
+		 break;
 	     }
 	  }
     }
@@ -1383,7 +1376,7 @@ static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
         envp = ctx->from.envp;
     }
 	
-    log_fd = open(ctx->to.log_path, O_CREAT | O_RDWR, 0666);
+    log_fd = open(ctx->to.log_path, O_CREAT | O_APPEND | O_RDWR, 0666);
     if (log_fd < 0) {
         PLOGE("Opening log_fd");
        // return -1;
@@ -1473,24 +1466,20 @@ static __attribute__ ((noreturn)) void select_allow(struct su_context *ctx) {
         } else {
             code = -1;
         }
-                close(infd[1]);
-		close(outfd[0]);
-		close(errfd[0]);
-  
+        close(infd[1]);
+        close(outfd[0]);
+        close(errfd[0]);
+        close(log_fd);
+		
         exit(code);
-	}
+    }
 }
 
 static __attribute__ ((noreturn)) void terminal_allow(struct su_context *ctx){
     char *arg0;
     int argc, err;
-    char input[4096];
-	char output[4096];
-	char error[4096];
+    
 	int log_fd = -1;
-	int inlen = 0;
-	int outlen = 0;
-	int errlen = 0;
 	char * const* envp = environ;
 	
 	
@@ -1559,10 +1548,10 @@ unsigned 	int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
     }
 
 	if (ctx->from.envp[0]) {
-        envp = ctx->from.envp;
-    }
+            envp = ctx->from.envp;
+        }
 	
-	log_fd = open(ctx->to.log_path, O_CREAT | O_RDWR, 0666);
+	log_fd = open(ctx->to.log_path, O_CREAT | O_APPEND |  O_RDWR, 0666);
     if (log_fd < 0) {
         PLOGE("Opening log_fd");
        // return -1;
@@ -1603,28 +1592,23 @@ unsigned 	int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
 	int outfd;
 	int errfd;
 	int ptmx = -1;
-    char pts_slave[PATH_MAX];
+        char pts_slave[PATH_MAX];
 	int ptsfd;
-	/*pipe(infd);
-	pipe(outfd);
-	pipe(errfd);
-	*/
+
 	ptmx = pts_open(pts_slave, sizeof(pts_slave));
     if (ptmx < 0) {
-        //PLOGE("pts_open");
+        PLOGE("pts_open");
         exit(-1);
     }
 	
 	int pid = fork();
     if (!pid) {
-		//if (ctx->enablemountnamespaceseparation) {
-			switch_mnt_ns(ctx->from.pid);
-		//}
-		populate_environment(ctx);
-	    set_identity(ctx->to.uid);
+	switch_mnt_ns(ctx->from.pid);
+	populate_environment(ctx);
+        set_identity(ctx->to.uid);
 		
-		setsid();
-		//if (pts_slave[0]) {
+	setsid();
+	//if (pts_slave[0]) {
         // Opening the TTY has to occur after the
         // fork() and setsid() so that it becomes
         // our controlling TTY and not the daemon's
@@ -1670,35 +1654,32 @@ unsigned 	int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
    // free(pts_slave);
 		
 		
-		if (-1 == dup2(infd, STDIN_FILENO)) {
-            //PLOGE("dup2 child infd");
+	if (-1 == dup2(infd, STDIN_FILENO)) {
+            PLOGE("dup2 child infd");
             exit(-1);
         }
-		if (-1 == dup2(outfd, STDOUT_FILENO)) {
-            //PLOGE("dup2 child outfd");
+	if (-1 == dup2(outfd, STDOUT_FILENO)) {
+            PLOGE("dup2 child outfd");
             exit(-1);
         }
-		if (-1 == dup2(errfd, STDERR_FILENO)) {
-            //PLOGE("dup2 child errfd");
+	if (-1 == dup2(errfd, STDERR_FILENO)) {
+            PLOGE("dup2 child errfd");
             exit(-1);
         }
 
 		close(infd);
 		close(outfd);
-		close(outfd);
+		close(errfd);
 		
 		//set_stdin_raw();
 		
 	    execv(ctx->to.shell, ctx->to.argv + argc/*, envp*/);
         err = errno;
-        //PLOGE("exec");
+        PLOGE("exec");
         fprintf(stderr, "Cannot execute %s: %s\n", ctx->to.shell, strerror(err));
         exit(EXIT_FAILURE);
 	 } else {
-		 /*close(infd[0]);
-		 close(outfd[1]);
-		 close(errfd[1]);
-		  */
+		
 		 memset(input, 0, 4096);
 		 memset(output, 0, 4096);
 		 memset(error, 0, 4096);
@@ -1721,7 +1702,8 @@ unsigned 	int s1 = (unsigned int)(tm.tv_sec) /** 1000*/;
         } else {
             code = -1;
         }
-
+        close(ptmx);
+        close(log_fd);
         exit(code);
     }
 }
@@ -1812,7 +1794,7 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
         envp = ctx->from.envp;
     }
 	
-	log_fd = open(ctx->to.log_path, O_CREAT | O_RDWR, 0666);
+	log_fd = open(ctx->to.log_path, O_CREAT | O_APPEND | O_RDWR, 0666);
     if (log_fd < 0) {
         PLOGE("Opening log_fd");
        // return -1;
@@ -1857,122 +1839,90 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
 	pipe(errfd);
 	
 	int pid = fork();
-    if (!pid) {
-		//if (ctx->enablemountnamespaceseparation) {
-			switch_mnt_ns(ctx->from.pid);
-		//}
-		populate_environment(ctx);
-	    set_identity(ctx->to.uid);
-		if (-1 == dup2(infd[0], STDIN_FILENO)) {
-           // PLOGE("dup2 child infd");
+        
+	if (!pid) {
+	
+	      switch_mnt_ns(ctx->from.pid);
+	      populate_environment(ctx);
+	      set_identity(ctx->to.uid);
+	if (-1 == dup2(infd[0], STDIN_FILENO)) {
+            PLOGE("dup2 child infd");
             exit(-1);
         }
-		if (-1 == dup2(outfd[1], STDOUT_FILENO)) {
-           // PLOGE("dup2 child outfd");
+	if (-1 == dup2(outfd[1], STDOUT_FILENO)) {
+            PLOGE("dup2 child outfd");
             exit(-1);
         }
-		if (-1 == dup2(errfd[1], STDERR_FILENO)) {
-            //PLOGE("dup2 child errfd");
+	if (-1 == dup2(errfd[1], STDERR_FILENO)) {
+            PLOGE("dup2 child errfd");
             exit(-1);
         }
-        close(infd[0]);
-		close(infd[1]);
-		close(outfd[0]);
-		close(outfd[1]);
-		close(errfd[0]);
-		close(errfd[1]);
+        close(infd[0]); 
+	close(infd[1]);
+	close(outfd[0]);
+	close(outfd[1]);
+	close(errfd[0]);
+	close(errfd[1]);
 		
-	    execv(ctx->to.shell, ctx->to.argv + argc/*, envp*/);
+	execv(ctx->to.shell, ctx->to.argv + argc/*, envp*/);
         err = errno;
-        //PLOGE("exec");
+        PLOGE("exec");
         fprintf(stderr, "Cannot execute %s: %s\n", ctx->to.shell, strerror(err));
         exit(EXIT_FAILURE);
-	 } else {
+     } else {
 		 
-	    close(infd[0]);
+	        close(infd[0]);
 		close(outfd[1]);
 		close(errfd[1]);
 			
 		 memset(input, 0, 4096);
 		 memset(output, 0, 4096);
 		 memset(error, 0, 4096);
-		 //input[sizeof(input)-1] = '\0';
 		
-		 //pump_stdin_async(infd[1], log_fd);
-		 //int inputfd = open(infd[1], O_WRONLY);
-	 // if ( /*fork_zero_fucks()*//*(inpid = */fork() == 0) {
+		// WK, on 25/02/2023: using fork() will cause several ploblems in root apps like SuperSU and Magisk. fall back to using thread instead:
+		pump_stdin_async(infd[1], log_fd);
+		/*
+	       if (fork() == 0) {
 		   
-		   /*close(infd[0]);
+		   close(infd[0]);
 		   close(outfd[0]);
 		   close(outfd[1]);
 		   close(errfd[0]);
-		   close(errfd[1]);*/
-		   /*close(outfd[1]);
-		   close(errfd[1]);*/
-		     //inpid = getpid();
-			 /*memset(input, 0, 4096);
-		     input[sizeof(input)-1] = '\0';
-		*/
-		// WK, on 25/02/2023: using fork() will cause several ploblems in root apps like SuperSU and Magisk. fall back to using thread instead:
-		pump_stdin_async(infd[1], log_fd);
-		
-		/*while ((inlen = read(STDIN_FILENO,input, 4096)) > 0 ) {
-			//input[sizeof(input)-1] = '\0';
-			 //LOGD("input: %s", input);
-			 
-			 //write(log_fd, input, inlen);
-			 if (write(infd[1], input,inlen) == -1)
-			 {
+		   close(errfd[1]);
+		 
+		while ((inlen = read(STDIN_FILENO,input, 4096)) > 0 ) {
+			 if (write(infd[1], input,inlen) == -1) {
 				 PLOGE("WRITE()");
 				 break;
 			 }
 			 
-			 
-			 
 			 write(log_fd, input, inlen);
-			 WK, disabled on 25/02/2023: this will break the Magisk due to the Magisk itself has scripts that have the exit command. so that all apps work as expeceted, fall back to using thread intead of fork for STDIN.
+			 // WK, disabled on 25/02/2023: this will break the Magisk due to the Magisk itself has scripts that have the exit command. so that all apps work as expeceted, fall back to using thread intead of fork for STDIN.
 			 // WK, on 20/02/2023: prevent blocking on the next read() if the whole data was fully read: this happens on instant exit apps like SuperSU, not on interactive apps like Link2SD:
-			 if (strstr(input, "exit") != NULL) {
-				 LOGD("found exit command");
-				 break;
+			 //if (strstr(input, "exit") != NULL) {
+				// LOGD("found exit command");
+				// break;
 		        // kill(pid, SIGKILL);
-		     }*/
-		 /*}
+			//}
+		 }
 		 LOGD("closing infd[1]");
-		 close(STDIN_FILENO);
 		 close(infd[1]);
-		// close(infd[1]);
-		 //kill(pid, SIGKILL);
-		// exit(0);
-		//close(infd[1]);
-		exit(0);
-	}*/
-	//close(infd[1]);
-	/*close(STDIN_FILENO);
-	close(infd[1]);
-	*/
+		 exit(0);
+	    }*/
+	
 	// WK: each stream must have its own process so that we have consistent results with the non-FCL mode and act as if we don't had stealing the STDS data and the parent process can continue its work and call waipid().
 	if (fork() == 0) {
-		  //close(STDIN_FILENO);
-	    close(infd[0]);
+	        
+		close(infd[0]);
 		close(infd[1]);
 		close(outfd[1]);
 		close(errfd[0]);
 		close(errfd[1]);
 		
-			// memset(output, 0, 4096);
-		    // output[sizeof(output)-1] = '\0';
-	 while ((outlen = read(outfd[0],output, 4096)) > 0 ) {
-			// output[sizeof(output)-1] = '\0';
-			 //output[strlen(output)-1] = '\0';
-			 // LOGD("output: %s", output);
-			/* if (output[strlen(output)] == '\n')
-				 output[strlen(output)] = '\0';
-				 */
-			 write(STDOUT_FILENO, output, outlen/*strlen(output)*/);
-			 //write(log_fd, "\n", strlen("\n"));
+               while ((outlen = read(outfd[0],output, 4096)) > 0 ) {
+			 write(STDOUT_FILENO, output, outlen);
 			 write(log_fd, "{", strlen("{"));
-			 write(log_fd, output, outlen/*strlen(output)*/);
+			 write(log_fd, output, outlen);
 			 write(log_fd, "\n", strlen("\n"));
 			 write(log_fd, "}", strlen("}"));
 			 write(log_fd, "\n", strlen("\n"));
@@ -1986,25 +1936,16 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
 	
 	
 	if (fork() == 0) {
-		//close(STDIN_FILENO);
 		close(infd[0]);
 		close(infd[1]);
 		close(outfd[0]);
 		close(outfd[1]);
 		close(errfd[1]);
-			// memset(error, 0, 4096);
-		    // error[sizeof(error)-1] = '\0';
+		
 		 while ((errlen = read(errfd[0], error, 4096)) > 0 ) {
-			// error[sizeof(error)-1] = '\0';
-			 //output[strlen(output)-1] = '\0';
-			 //LOGD("error: %s", error);
-			/* if (output[strlen(output)] == '\n')
-				 output[strlen(output)] = '\0';
-				 */
-			 //write(log_fd, "\n", strlen("\n"));
-			 write(STDERR_FILENO, error, errlen/*strlen(output)*/);
+			 write(STDERR_FILENO, error, errlen);
 			 write(log_fd, "!", strlen("!"));
-			 write(log_fd, error, errlen/*strlen(output)*/);
+			 write(log_fd, error, errlen);
 			 write(log_fd, "\n", strlen("\n"));
 			 write(log_fd, "!", strlen("!"));
 			 write(log_fd, "\n", strlen("\n"));
@@ -2019,57 +1960,10 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
 	
 	
 	//pump_stdout_blocking(outfd[0], log_fd);
-	  
-	
-	
-	  //close(STDERR_FILENO);
-	  //close(errfd[0]);
-	  
-	  
-		 //close(STDOUT_FILENO);
-    // close(outfd[0]);
-		// close(STDIN_FILENO);
-		 
-		 //exit(0);
-		 /*kill(getpid(), SIGKILL);
-		 exit(0);*/
-		// kill(pid, SIGKILL);
-	//}
-	//close(STDIN_FILENO);
-	//close(infd[0]);
-	//close(infd[1]);
-	
-	//kill(pid, SIGKILL);
-	//close(infd[1]);
-	
-	    //close(STDIN_FILENO);
-		//close(infd[0]);
-		/*
-		// moved down to after waitpid() so this process dont exit due to the closed pipes.
-		close(infd[1]);
-		close(outfd[0]);
-		//close(outfd[1]);
-		close(errfd[0]);*/
-		//close(errfd[1]);
-		
-		
-		//kill(getpid(), SIGKILL);
-		/* if (inpid > 0) {
-			 LOGD("killing inpid pid %d", pid);
-			 kill(pid, SIGKILL);
-			 inpid = 0;
-		 }*/
 		 
         int status, code;
 
         LOGD("Waiting for pid %d.", pid);
-		/*if (inpid > 0 && getpid() == inpid) {
-			kill(inpid, SIGKILL);
-			//kill(outpid, SIGKILL);
-			//kill(errpid, SIGKILL);
-			kill(pid, SIGKILL);
-			exit(0);
-		}*/
 			
         waitpid(pid, &status, 0);
 
@@ -2082,29 +1976,11 @@ static __attribute__ ((noreturn)) void fork_allow(struct su_context *ctx) {
         } else {
             code = -1;
         }
-		close(infd[1]);
-	    close(outfd[0]);
-		close(errfd[0]);
-		/*close(0);
-		close(infd[0]);
-		close(infd[1]);
-		close(outfd[0]);
-		close(outfd[1]);
-		close(errfd[0]);
-		close(errfd[1]);*/
-		//kill(pid, SIGKILL);
-		/*if (inpid > 0 && getpid() == inpid) {
-			LOGD("killing inpid pid %d %d",inpid, pid);
-			
-			close(infd[0]);
-			close(infd[1]);
-		    close(outfd[1]);
-		    close(errfd[1]);
-			close(0);
-			kill(pid, SIGKILL);
-			exit(0);
-		}*/
-       
+	close(infd[1]);
+	close(outfd[0]);
+	close(errfd[0]);
+	close(log_fd);
+		
         exit(code);
     }
 }
