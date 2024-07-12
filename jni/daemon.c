@@ -292,9 +292,6 @@ static int run_daemon_child(int infd, int outfd, int errfd, int argc, char** arg
 extern userid_t multiuser_get_user_id(uid_t uid);
 
 static int daemon_accept(int fd) {
-    char mypath[PATH_MAX], remotepath[PATH_MAX];
-    int caller_is_self = 0;
-
     is_daemon = 1;
     int pid = read_int(fd);
     int child_result;
@@ -305,7 +302,7 @@ static int daemon_accept(int fd) {
     LOGD("remote req pid: %d", daemon_from_pid);
 
     struct ucred credentials;
-    socklen_t ucred_length = sizeof(struct ucred);
+    socklen_t ucred_length = sizeof(credentials);
     /* fill in the user data structure */
     if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &credentials, &ucred_length)) {
         LOGE("could obtain credentials from unix domain socket");
@@ -595,9 +592,9 @@ int run_daemon() {
     envp[0] = &env[0];
 	
     for (i = 0, j = 0; i < len && j < ARRAY_SIZE(envp); i++) {
-		putenv(envp[j]);
+	putenv(envp[j]);
         if (env[i] == '\0') {
-                 envp[++j] = &env[i + 1];
+            envp[++j] = &env[i + 1];
         }
     }
 	/* WK, on 10/02/2023: on Android 12, /system/lib64 comes first instead of /system/lib in order to load the correct libc.so and prevent executable linkage error due to the device is arm64-v8a:
@@ -610,12 +607,7 @@ int run_daemon() {
 	if (envp[0]) {
 		LOGI("envp[0]=%s",envp[0]);
         zygote_env = envp;
-    }
-
-	//unsetenv("LB_PRELOAD");
-	//char my_env[PATH_MAX];
-	//snprintf(my_env, PATH_MAX, "LD_LIBRARY_PATH=/vendor/lib:/vendor/lib64:/system/lib:/system/lib64:/su/lib:/sbin/supersu/lib");
-	  
+	}
 	
 	int  pid = fork ();
 	   if (!pid) {
@@ -767,7 +759,8 @@ static void setup_sighandlers(void) {
 int connect_daemon(int argc, char *argv[]/*, int ppid*/, char** env) {
     int ptmx = -1;
     char pts_slave[PATH_MAX];
-
+    int outfd[2];
+	
     struct sockaddr_un sun;
     
 	char path[PATH_MAX];
@@ -846,7 +839,16 @@ int connect_daemon(int argc, char *argv[]/*, int ppid*/, char** env) {
         // Using PTY
         send_fd(socketfd, -1);
     } else {
-        send_fd(socketfd, STDOUT_FILENO);
+	    
+        if (pipe(outfd) < 0) {
+	    PLOGE("pipe(outfd)");
+	    exit(-1);
+	} else {
+            LOGD("outfd pipes are open: [%d][%d]", outfd[0], outfd[1]);
+	    // Send stdout
+	    send_fd(socketfd, outfd[1]/*STDOUT_FILENO*/);
+	}
+	    
     }
 
     // Send stderr
@@ -919,7 +921,11 @@ int connect_daemon(int argc, char *argv[]/*, int ppid*/, char** env) {
     if (atty & ATTY_OUT) {
         pump_stdout_blocking(ptmx, -1);
     }
-
+    
+    close(outfd[1]);
+    pump_stdout_blocking(outfd[0], -1);
+    close(outfd[0]);
+	
     // Get the exit code
     int code = read_int(socketfd);
     close(socketfd);
