@@ -1,5 +1,5 @@
  - name: Setup Android NDK modified(export NDK_HOME)
  - uses: nttld/setup-ndk@v1
-      with:
-        ndk-version: r26d # Specify the desired NDK version
-        add-to-path: true # Add NDK tools to PATH
+ with:
+ ndk-version: r29 # Specify the desired NDK version
+ add-to-path: true # Add NDK tools to PATH
