@@ -4,7 +4,7 @@
   uses: HoshinoSuzumi/setup-ndk@v1.5.4
   with:
     # Exact version to use
-    ndk-version: 
+    ndk-version: 29.0.14206865
     # Add installation directory to the PATH
     add-to-path: # optional, default is true
     # Add installed NDK to the Android SDK
