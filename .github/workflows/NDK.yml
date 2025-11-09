@@ -5,12 +5,12 @@ on:
   pull_request:
     branches: [ "main" ]
 
-jobs:
-  build:
-  runs-on: ubuntu-latest
+- jobs:
+  - build:
+- runs-on: ubuntu-latest
    #steps:
     - uses: actions/checkout@v4
     - uses: HoshinoSuzumi/setup-ndk@v1.5.4
-    with:
-      ndk-version: r29d
+    - with:
+    - ndk-version: r29d
     - run: ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk NDK_APPLICATION_MK=./Application.mk
