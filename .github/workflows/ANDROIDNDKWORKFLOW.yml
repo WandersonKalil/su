@@ -1,7 +1,8 @@
 #name: Setup Android NDK
-#steps:
+steps:
   - uses: actions/checkout@v3
   - uses: nttld/setup-ndk@v1
     with:
-      ndk-version: r26d
+      ndk-version: r21e
+      local-cache: true
   - run: ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=./Android.mk NDK_APPLICATION_MK=./Application.mk
