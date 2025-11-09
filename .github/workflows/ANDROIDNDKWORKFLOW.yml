@@ -1,5 +1,32 @@
- - name: Setup Android NDK modified(export NDK_HOME)
- - uses: nttld/setup-ndk@v1
- with:
- ndk-version: r29 # Specify the desired NDK version
- add-to-path: true # Add NDK tools to PATH
+name: Setup Android NDK
+description: Setup an Android NDK environment by downloading and optionally caching it and adding it to the PATH
+author: Raphaël Thériault
+branding:
+  icon: play
+  color: green
+
+inputs:
+  ndk-version: r29
+    description: Exact version to use
+    required: true
+  add-to-path:
+    description: Add installation directory to the PATH
+    required: false
+    default: "true"
+  link-to-sdk:
+    description: Add installed NDK to the Android SDK
+    required: false
+    default: "false"
+  local-cache:
+    description: Use the local job cache on top of the runner tool cache
+    required: false
+    default: "false"
+outputs:
+  ndk-path:
+    description: Installation path
+  ndk-full-version:
+    description: Full NDK version
+
+runs:
+  using: node20
+  main: dist/index.js
