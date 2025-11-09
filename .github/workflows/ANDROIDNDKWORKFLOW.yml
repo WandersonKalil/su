@@ -5,7 +5,7 @@ branding:
   icon: play
   color: green
 
-inputs:
+#inputs:
   ndk-version: r29
     #description: Exact version to use
     required: true
@@ -21,7 +21,7 @@ inputs:
     #description: Use the local job cache on top of the runner tool cache
     required: false
     default: "false"
-outputs:
+#outputs:
   ndk-path:
     #description: Installation path
   ndk-full-version: r29
