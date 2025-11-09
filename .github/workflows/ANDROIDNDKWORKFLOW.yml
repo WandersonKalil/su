@@ -1,15 +1,5 @@
  - name: Setup Android NDK modified(export NDK_HOME)
- # You may pin to the exact commit or the version.
- # uses: HoshinoSuzumi/setup-ndk@e5b4e1569254ce901953f8c41a1bbbe0bd0d2c69
- - uses: actions/checkout@v4
-  uses: HoshinoSuzumi/setup-ndk@v1.5.4
-  with:
-    # Exact version to use
-    ndk-version: 29.0.14206865
-    # Add installation directory to the PATH
-    add-to-path: # optional, default is true
-    # Add installed NDK to the Android SDK
-    link-to-sdk: # optional, default is false
-    # Use the local job cache on top of the runner tool cache
-    local-cache: # optional, default is false
-          
+    - uses: nttld/setup-ndk@v1
+      with:
+        ndk-version: r26d # Specify the desired NDK version
+        add-to-path: true # Add NDK tools to PATH
