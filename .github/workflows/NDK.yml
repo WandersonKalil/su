@@ -1,5 +1,5 @@
 - name: Setup Android NDK modified(export NDK_HOME)
-- jobs:
+jobs:
 build:
 - runs-on: ubuntu-latest
    #steps:
